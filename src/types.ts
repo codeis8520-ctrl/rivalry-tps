@@ -1,4 +1,4 @@
-export type WeaponType = 'pistol' | 'rifle' | 'shotgun' | 'sniper' | 'rpg' | 'katana';
+export type WeaponType = 'pistol' | 'rifle' | 'smg' | 'shotgun' | 'sniper' | 'rpg' | 'katana';
 
 export interface WeaponStats {
   name: string;

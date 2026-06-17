@@ -56,7 +56,7 @@ export default function App() {
     if (local) {
       try { return JSON.parse(local); } catch (e) { /* fallback */ }
     }
-    return ['p_default', 'r_default', 's_default', 'sn_default', 'rpg_default', 'kd_default'];
+    return ['p_default', 'r_default', 's_default', 'sn_default', 'rpg_default', 'kd_default', 'smg_default'];
   });
 
   const [equippedSkins, setEquippedSkins] = useState<Record<string, string>>(() => {
@@ -69,6 +69,7 @@ export default function App() {
     return {
       pistol: 'p_default',
       rifle: 'r_default',
+      smg: 'smg_default',
       shotgun: 's_default',
       sniper: 'sn_default',
       rpg: 'rpg_default',
@@ -179,7 +180,7 @@ export default function App() {
     if (savedInv) {
       try { setInventory(JSON.parse(savedInv)); } catch (e) {}
     } else {
-      const dInv = ['p_default', 'r_default', 's_default', 'sn_default', 'rpg_default', 'kd_default'];
+      const dInv = ['p_default', 'r_default', 's_default', 'sn_default', 'rpg_default', 'kd_default', 'smg_default'];
       setInventory(dInv);
       localStorage.setItem(`rivals_user_${cleanUser}_inventory`, JSON.stringify(dInv));
     }
@@ -189,8 +190,8 @@ export default function App() {
       try { setEquippedSkins(JSON.parse(savedEquipped)); } catch (e) {}
     } else {
       const dEquipped = {
-        pistol: 'p_default', rifle: 'r_default', shotgun: 's_default',
-        sniper: 'sn_default', rpg: 'rpg_default', katana: 'kd_default',
+        pistol: 'p_default', rifle: 'r_default', smg: 'smg_default',
+        shotgun: 's_default', sniper: 'sn_default', rpg: 'rpg_default', katana: 'kd_default',
       };
       setEquippedSkins(dEquipped);
       localStorage.setItem(`rivals_user_${cleanUser}_equipped_skins`, JSON.stringify(dEquipped));

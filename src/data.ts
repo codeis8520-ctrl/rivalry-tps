@@ -76,6 +76,21 @@ export const WEAPON_TYPES: Record<string, WeaponStats> = {
     color: '#a855f7',
     description: '전술 세열수류탄입니다. 다소 느린 궤적으로 폭발물을 포착 지점에 투척해 가공할 폭발 피해를 입힙니다.',
   },
+  smg: {
+    name: 'UMP-45 SMG (기관단총)',
+    type: 'smg',
+    damage: 14,
+    headshotMult: 1.6,
+    fireRate: 80,
+    reloadTime: 1.8,
+    maxAmmo: 35,
+    range: 380,
+    bulletSpeed: 13,
+    spread: 0.055,
+    bulletCount: 1,
+    color: '#38bdf8',
+    description: '고속 연사 기관단총입니다. 근~중거리에서 탄막을 쏟아부어 상대를 압도합니다.',
+  },
   katana: {
     name: 'Death Scythe (그림 리퍼의 낫)',
     type: 'katana',
@@ -124,7 +139,43 @@ export const WEAPON_SKINS: WeaponSkin[] = [
   // --- Katana skins ---
   { id: 'kd_default', name: '참격의 귀베르네', weaponType: 'katana', rarity: 'common', primaryColor: '#ec4899', secondaryColor: '#000000', glow: false, pattern: 'solid' },
   { id: 'kd_plasma', name: '플라즈마 써멀 서광 열선', weaponType: 'katana', rarity: 'epic', primaryColor: '#3b82f6', secondaryColor: '#06b6d4', glow: true, pattern: 'neon' },
-  { id: 'kd_secret', name: '쌍둥이자리 성운 오로라 특수낫', weaponType: 'katana', rarity: 'classified', primaryColor: '#4f46e5', secondaryColor: '#db2777', glow: true, pattern: 'galaxy' }
+  { id: 'kd_secret', name: '쌍둥이자리 성운 오로라 특수낫', weaponType: 'katana', rarity: 'classified', primaryColor: '#4f46e5', secondaryColor: '#db2777', glow: true, pattern: 'galaxy' },
+  { id: 'kd_crimson', name: '혈도 (血刀) 심판의 낫', weaponType: 'katana', rarity: 'rare', primaryColor: '#dc2626', secondaryColor: '#0f172a', glow: false, pattern: 'solid' },
+  { id: 'kd_samurai', name: '무사의 검 황금 일도', weaponType: 'katana', rarity: 'epic', primaryColor: '#94a3b8', secondaryColor: '#ca8a04', glow: true, pattern: 'gold_plated' },
+  { id: 'kd_oni', name: '오니 (鬼) 귀신의 혼 낫', weaponType: 'katana', rarity: 'legendary', primaryColor: '#f97316', secondaryColor: '#4c0519', glow: true, pattern: 'galaxy' },
+
+  // --- SMG skins ---
+  { id: 'smg_default', name: '전술 표준 UMP 기관단총', weaponType: 'smg', rarity: 'common', primaryColor: '#475569', secondaryColor: '#1e293b', glow: false, pattern: 'solid' },
+  { id: 'smg_neon', name: '사이버 전격 네온 SMG', weaponType: 'smg', rarity: 'rare', primaryColor: '#22d3ee', secondaryColor: '#7c3aed', glow: false, pattern: 'neon' },
+  { id: 'smg_storm', name: '번개 폭풍 뇌격 SMG', weaponType: 'smg', rarity: 'epic', primaryColor: '#fbbf24', secondaryColor: '#1d4ed8', glow: true, pattern: 'fade' },
+  { id: 'smg_gold', name: '황금 폭격기 골든 SMG', weaponType: 'smg', rarity: 'legendary', primaryColor: '#f59e0b', secondaryColor: '#78350f', glow: true, pattern: 'gold_plated' },
+  { id: 'smg_void', name: '공허의 침묵 다크 SMG', weaponType: 'smg', rarity: 'classified', primaryColor: '#4f46e5', secondaryColor: '#0f172a', glow: true, pattern: 'galaxy' },
+
+  // --- Extra Pistol skins ---
+  { id: 'p_sakura', name: '벚꽃 에디션 체리블라썸 데글', weaponType: 'pistol', rarity: 'rare', primaryColor: '#ec4899', secondaryColor: '#fce7f3', glow: false, pattern: 'fade' },
+  { id: 'p_shadow', name: '어비스 섀도우 암흑 데글', weaponType: 'pistol', rarity: 'epic', primaryColor: '#1e1b4b', secondaryColor: '#7c3aed', glow: true, pattern: 'galaxy' },
+  { id: 'p_electric', name: '전격 스톰 일렉트릭 데글', weaponType: 'pistol', rarity: 'rare', primaryColor: '#facc15', secondaryColor: '#1d4ed8', glow: false, pattern: 'neon' },
+  { id: 'p_jade', name: '비취 용왕 에메랄드 데글', weaponType: 'pistol', rarity: 'legendary', primaryColor: '#059669', secondaryColor: '#064e3b', glow: true, pattern: 'galaxy' },
+
+  // --- Extra Rifle skins ---
+  { id: 'r_arctic', name: '북극 설풍 아크틱 M4', weaponType: 'rifle', rarity: 'rare', primaryColor: '#bae6fd', secondaryColor: '#0284c7', glow: false, pattern: 'fade' },
+  { id: 'r_shadow', name: '암흑 저승사자 다크 M4', weaponType: 'rifle', rarity: 'epic', primaryColor: '#1e1b4b', secondaryColor: '#312e81', glow: true, pattern: 'digital' },
+  { id: 'r_dragon', name: '청룡의 분노 드래곤 M4', weaponType: 'rifle', rarity: 'legendary', primaryColor: '#06b6d4', secondaryColor: '#ca8a04', glow: true, pattern: 'galaxy' },
+  { id: 'r_crimson', name: '지옥불 학살자 크림슨 M4', weaponType: 'rifle', rarity: 'classified', primaryColor: '#dc2626', secondaryColor: '#0f172a', glow: true, pattern: 'neon' },
+
+  // --- Extra Shotgun skins ---
+  { id: 's_inferno', name: '지옥불 인페르노 샷건', weaponType: 'shotgun', rarity: 'epic', primaryColor: '#ea580c', secondaryColor: '#1c1917', glow: true, pattern: 'fade' },
+  { id: 's_ghost', name: '팬텀 유령 고스트 샷건', weaponType: 'shotgun', rarity: 'rare', primaryColor: '#e2e8f0', secondaryColor: '#334155', glow: false, pattern: 'solid' },
+  { id: 's_acid', name: '독성 산 분무기 바이오해저드', weaponType: 'shotgun', rarity: 'rare', primaryColor: '#84cc16', secondaryColor: '#365314', glow: false, pattern: 'neon' },
+
+  // --- Extra Sniper skins ---
+  { id: 'sn_emerald', name: '에메랄드 정밀 사수 AWM', weaponType: 'sniper', rarity: 'epic', primaryColor: '#059669', secondaryColor: '#0f172a', glow: true, pattern: 'digital' },
+  { id: 'sn_phantom', name: '팬텀 유령 저격수 AWM', weaponType: 'sniper', rarity: 'rare', primaryColor: '#94a3b8', secondaryColor: '#1e293b', glow: false, pattern: 'solid' },
+  { id: 'sn_crimson', name: '피의 메아리 크림슨 AWM', weaponType: 'sniper', rarity: 'legendary', primaryColor: '#dc2626', secondaryColor: '#450a0a', glow: true, pattern: 'fade' },
+
+  // --- Extra RPG skins ---
+  { id: 'rpg_crimson', name: '붉은 폭풍 크림슨 수류탄', weaponType: 'rpg', rarity: 'rare', primaryColor: '#ef4444', secondaryColor: '#1c1917', glow: false, pattern: 'fade' },
+  { id: 'rpg_galaxy', name: '은하 대파괴 코스믹 수류탄', weaponType: 'rpg', rarity: 'legendary', primaryColor: '#7c3aed', secondaryColor: '#020617', glow: true, pattern: 'galaxy' }
 ];
 
 export const CASES: CaseType[] = [
@@ -135,7 +186,7 @@ export const CASES: CaseType[] = [
     currency: 'gold',
     customDescription: '기본적인 전투 훈련 및 장비 보급을 위한 전술 보물 상자입니다. 표준 클래식 위장 스킨들을 얻을 수 있습니다.',
     color: '#475569',
-    pool: ['p_default', 'p_forest', 'r_default', 's_default', 'sn_default', 'rpg_default', 'kd_default']
+    pool: ['p_default', 'p_forest', 'r_default', 's_default', 'sn_default', 'rpg_default', 'kd_default', 'smg_default', 'sn_phantom', 's_ghost']
   },
   {
     id: 'case_tactical',
@@ -144,7 +195,7 @@ export const CASES: CaseType[] = [
     currency: 'gold',
     customDescription: '특수 독성 화합물 형광 코팅과 전술적 경고 디지털 카모플라주 테인티드 레이아웃 컬렉션입니다.',
     color: '#0d9488',
-    pool: ['p_neon', 'r_digital', 's_toxic', 'sn_blizzard', 'kd_plasma', 'rpg_nuclear']
+    pool: ['p_neon', 'p_electric', 'p_sakura', 'r_digital', 'r_arctic', 's_toxic', 's_acid', 'sn_blizzard', 'kd_plasma', 'kd_crimson', 'rpg_nuclear', 'rpg_crimson', 'smg_neon']
   },
   {
     id: 'case_classified',
@@ -153,7 +204,7 @@ export const CASES: CaseType[] = [
     currency: 'gems',
     customDescription: '차원을 왜곡하는 갤럭시 소용돌이 패턴과 찬란한 주권자 리전 무구 스킨셋을 영구 수집할 수 있는 최고급 보상 상자입니다.',
     color: '#7c3aed',
-    pool: ['p_gold', 'r_magma', 'r_hyper', 's_void', 'sn_nebula', 'sn_dragon', 'kd_secret']
+    pool: ['p_gold', 'p_shadow', 'p_jade', 'r_magma', 'r_hyper', 'r_shadow', 'r_dragon', 'r_crimson', 's_void', 's_inferno', 'sn_nebula', 'sn_dragon', 'sn_emerald', 'sn_crimson', 'kd_secret', 'kd_samurai', 'kd_oni', 'smg_storm', 'smg_gold', 'smg_void', 'rpg_galaxy']
   }
 ];
 
@@ -223,6 +274,28 @@ export const BOTS: BotProfile[] = [
     winRate: 89,
     kdRate: 3.45,
     badge: '챔피언'
+  },
+  {
+    name: '연사왕_불도저',
+    title: 'SMG 광속 압박가',
+    difficulty: 'medium',
+    favoriteWeapon: 'smg',
+    skinId: 'smg_neon',
+    avatarColor: '#22d3ee',
+    winRate: 55,
+    kdRate: 1.20,
+    badge: '골드 III'
+  },
+  {
+    name: '사이버_기관총병',
+    title: '기관단총 달인',
+    difficulty: 'hard',
+    favoriteWeapon: 'smg',
+    skinId: 'smg_storm',
+    avatarColor: '#fbbf24',
+    winRate: 68,
+    kdRate: 1.65,
+    badge: '플래티넘 II'
   }
 ];
 

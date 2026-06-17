@@ -58,6 +58,17 @@ class GameAudioEngine {
         osc.stop(now + 0.11);
         break;
 
+      case 'smg':
+        // Fast high-pitched rattle burst
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(700, now);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.07);
+        gainNode.gain.setValueAtTime(0.18, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.07);
+        osc.start(now);
+        osc.stop(now + 0.08);
+        break;
+
       case 'shotgun':
         // Deep explosive blast (simulated white noise burst)
         osc.type = 'sawtooth';

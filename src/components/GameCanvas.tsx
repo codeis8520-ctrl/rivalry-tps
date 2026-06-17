@@ -1139,7 +1139,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       } else if (distToPlayer > bWeapon.range * 0.7) {
         // Out of weapon ideal profile, hunt down player
         bt.behaviorState = 'hunt';
-      } else if (distToPlayer < bWeapon.range * 0.3 && bWeapon.type === 'sniper') {
+      } else if (distToPlayer < bWeapon.range * 0.3 && (bWeapon.type === 'sniper')) {
         // Snipe bot gets compressed, retreats
         bt.behaviorState = 'retreat';
       } else {
