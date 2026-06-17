@@ -1,0 +1,6 @@
+{
+  "name": "Rival Duels 1v1",
+  "description": "A premium, Roblox Rivals-inspired 3D top-down 1v1 shooter featuring customizable weapon skins, case openings, crosshair editors, and smart AI match duels.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
