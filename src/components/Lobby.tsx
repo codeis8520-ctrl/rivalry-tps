@@ -3,6 +3,7 @@ import { WeaponStats, WeaponSkin, CaseType, PlayerStats, CrosshairSettings, BotP
 import { gameAudio } from '../audio';
 import { WEAPON_TYPES, WEAPON_SKINS, CASES, BOTS } from '../data';
 import { CrosshairEditor } from './CrosshairEditor';
+import { LeaderboardScreen } from './LeaderboardScreen';
 import {
   Trophy,
   ShoppingBag,
@@ -113,7 +114,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   onLogout,
 }) => {
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<'matchmaking' | 'armory' | 'shop' | 'crosshair' | 'stats' | 'admin'>('matchmaking');
+  const [activeTab, setActiveTab] = useState<'matchmaking' | 'armory' | 'shop' | 'crosshair' | 'stats' | 'leaderboard' | 'admin'>('matchmaking');
 
   // Matchmaking process states
   const [queueType, setQueueType] = useState<'casual' | 'ranked'>('casual');
@@ -850,6 +851,7 @@ export const Lobby: React.FC<LobbyProps> = ({
               { id: 'shop', label: '상점', icon: <ShoppingBag className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> },
               { id: 'crosshair', label: '조준점', icon: <Crosshair className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> },
               { id: 'stats', label: '전적', icon: <User className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> },
+              { id: 'leaderboard', label: '랭킹', icon: <Trophy className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1495,7 +1497,12 @@ export const Lobby: React.FC<LobbyProps> = ({
               </div>
             )}
 
-            {/* TAB 6: SOVEREIGN ADMIN PANEL CONTROLLER (EXCLUSIVELY FOR yechan0920yo) */}
+            {/* TAB 6: GLOBAL LEADERBOARD */}
+            {activeTab === 'leaderboard' && (
+              <LeaderboardScreen currentUser={currentUser ?? ''} />
+            )}
+
+            {/* TAB 7: SOVEREIGN ADMIN PANEL CONTROLLER (EXCLUSIVELY FOR yechan0920yo) */}
             {activeTab === 'admin' && currentUser?.trim().toLowerCase() === 'yechan0920yo' && (
               <div className="space-y-6 animate-in fade-in duration-300">
                 {/* Header Banner */}

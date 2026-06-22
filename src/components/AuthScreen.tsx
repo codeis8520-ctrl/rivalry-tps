@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Lock, Eye, EyeOff, Trophy, ShieldAlert, Check, Play, UserPlus, LogIn } from 'lucide-react';
 import { gameAudio } from '../audio';
+import { signInUser, signUpUser, isSupabaseConfigured } from '../lib/gameDB';
 
 interface AuthScreenProps {
   onLogin: (username: string) => void;
@@ -17,41 +18,71 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Helper validation matching Roblox style limits
+  const dbMode = isSupabaseConfigured();
+
   const validateForm = () => {
     if (!username.trim() || username.length < 3) {
       setErrorMsg('사용자 이름은 최소 3자 이상이어야 합니다.');
-      gameAudio.playCrateRollSound(); // Play feedback tick
+      gameAudio.playCrateRollSound();
       return false;
     }
-    // Alphanumeric validation
     const regex = /^[a-zA-Z0-9_]+$/;
     if (!regex.test(username)) {
       setErrorMsg('사용자 이름은 영문, 숫자, 언더바(_)만 가능합니다.');
       gameAudio.playCrateRollSound();
       return false;
     }
-
-    if (!password || password.length < 4) {
-      setErrorMsg('비밀번호는 최소 4자 이상이어야 합니다.');
+    if (!password || password.length < 6) {
+      setErrorMsg('비밀번호는 최소 6자 이상이어야 합니다.');
       gameAudio.playCrateRollSound();
       return false;
     }
-
     if (!isLogin && password !== confirmPassword) {
       setErrorMsg('비밀번호가 일치하지 않습니다.');
       gameAudio.playCrateRollSound();
       return false;
     }
-
     return true;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // --- Supabase 연동 모드 ---
+  const handleSubmitDB = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    if (!validateForm()) return;
 
+    setLoading(true);
+    gameAudio.playClickSound();
+
+    if (isLogin) {
+      const { error } = await signInUser(username.trim(), password);
+      if (error) {
+        setErrorMsg(error);
+        gameAudio.playCrateRollSound();
+        setLoading(false);
+        return;
+      }
+      setSuccessMsg('로그인 성공! 전장으로 진입합니다...');
+      setTimeout(() => onLogin(username.trim()), 1000);
+    } else {
+      const { error } = await signUpUser(username.trim(), password);
+      if (error) {
+        setErrorMsg(error);
+        gameAudio.playCrateRollSound();
+        setLoading(false);
+        return;
+      }
+      setSuccessMsg('회원가입 완료! 로그인 상태로 접속합니다...');
+      setTimeout(() => onLogin(username.trim()), 1000);
+    }
+  };
+
+  // --- 로컬 스토리지 폴백 모드 ---
+  const handleSubmitLocal = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
     if (!validateForm()) return;
 
     setLoading(true);
@@ -59,79 +90,45 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
     setTimeout(() => {
       try {
-        const storedAccountsJson = localStorage.getItem('rivals_users_database');
-        const accounts = storedAccountsJson ? JSON.parse(storedAccountsJson) : {};
-
-        const cleanUsername = username.trim().toLowerCase();
+        const db = localStorage.getItem('rivals_users_database');
+        const accounts = db ? JSON.parse(db) : {};
+        const cleanUser = username.trim().toLowerCase();
 
         if (isLogin) {
-          // --- LOGIN PROCESS ---
-          if (!accounts[cleanUsername]) {
+          if (!accounts[cleanUser]) {
             setErrorMsg('존재하지 않는 사용자 이름입니다.');
             gameAudio.playCrateRollSound();
             setLoading(false);
             return;
           }
-
-          if (accounts[cleanUsername].password !== password) {
+          if (accounts[cleanUser].password !== password) {
             setErrorMsg('비밀번호가 일치하지 않습니다.');
             gameAudio.playCrateRollSound();
             setLoading(false);
             return;
           }
-
           setSuccessMsg('로그인 성공! 전장으로 진입합니다...');
-          setTimeout(() => {
-            onLogin(username.trim());
-          }, 1200);
-
+          setTimeout(() => onLogin(username.trim()), 1200);
         } else {
-          // --- REGISTER PROCESS ---
-          if (accounts[cleanUsername]) {
-            setErrorMsg('이미 존재하는 사용자 이름입니다. 다른 이름을 사용하세요.');
+          if (accounts[cleanUser]) {
+            setErrorMsg('이미 존재하는 사용자 이름입니다.');
             gameAudio.playCrateRollSound();
             setLoading(false);
             return;
           }
-
-          // Register new account
-          accounts[cleanUsername] = {
-            password: password,
-            displayName: username.trim(),
-            createdAt: new Date().toISOString(),
-          };
-
-          // Commit to Local Database list
+          accounts[cleanUser] = { password, displayName: username.trim(), createdAt: new Date().toISOString() };
           localStorage.setItem('rivals_users_database', JSON.stringify(accounts));
-
-          setSuccessMsg('회원가입이 완료되었습니다! 로그인 상태로 접속합니다...');
-          
-          // Initialize empty profile states in localStorage as well for this user specifically
-          const baseUserStats = {
-            wins: 0,
-            losses: 0,
-            kills: 0,
-            deaths: 0,
-            headshots: 0,
-            gold: 300,
-            gems: 10,
-            level: 1,
-            xp: 0,
-            winStreak: 0,
-            rankedRP: 100,
-          };
-          localStorage.setItem(`rivals_user_${cleanUsername}_stats`, JSON.stringify(baseUserStats));
-
-          setTimeout(() => {
-            onLogin(username.trim());
-          }, 1200);
+          setSuccessMsg('회원가입 완료! 접속합니다...');
+          setTimeout(() => onLogin(username.trim()), 1200);
         }
-      } catch (err) {
-        setErrorMsg('시스템 오류가 발생했습니다. 다시 시도해주세요.');
+      } catch {
+        setErrorMsg('시스템 오류가 발생했습니다.');
         setLoading(false);
       }
     }, 800);
   };
+
+  const handleSubmit = dbMode ? handleSubmitDB : handleSubmitLocal;
 
   const toggleTab = () => {
     gameAudio.playClickSound();
@@ -145,35 +142,46 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
   return (
     <div className="w-full max-w-md mx-auto bg-slate-900 border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
-      {/* Visual background ambient gradient glow */}
       <div className={`absolute -top-10 inset-x-0 h-40 blur-3xl opacity-20 transition-all duration-500 pointer-events-none ${
         isLogin ? 'bg-indigo-500' : 'bg-rose-500'
       }`} />
 
-      {/* Header section with Trophy logo */}
       <div className="flex flex-col items-center text-center space-y-4 relative mb-8">
         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-500 ${
-          isLogin 
-            ? 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-505/20' 
-            : 'bg-gradient-to-br from-rose-500 to-orange-500 shadow-rose-550/20'
+          isLogin
+            ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
+            : 'bg-gradient-to-br from-rose-500 to-orange-500'
         }`}>
           <Trophy className="w-7 h-7 text-white animate-pulse" />
         </div>
         <div>
           <h1 className="font-sans font-black text-2xl tracking-tight uppercase text-white flex items-center gap-1.5 justify-center">
-            RIVAL DUELS <span className="text-[10px] bg-indigo-500 text-white px-2 py-0.5 rounded-full font-bold uppercase font-mono tracking-normal leading-normal">Web Sandbox</span>
+            RIVAL DUELS{' '}
+            <span className="text-[10px] bg-indigo-500 text-white px-2 py-0.5 rounded-full font-bold uppercase font-mono tracking-normal leading-normal">
+              Web Sandbox
+            </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1 font-medium">로블록스 라이벌 스타일의 1v1 아레나에 입장하세요</p>
         </div>
+
+        {/* DB 연결 상태 표시 */}
+        <div className={`flex items-center gap-1.5 text-[10px] font-mono font-bold px-3 py-1 rounded-full border ${
+          dbMode
+            ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+            : 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10'
+        }`}>
+          <div className={`w-1.5 h-1.5 rounded-full ${dbMode ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
+          {dbMode ? 'Supabase DB 연결됨' : '로컬 모드 (DB 미연결)'}
+        </div>
       </div>
 
-      {/* Tab Selectors */}
-      <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800/80 mb-6 relative">
+      {/* 탭 */}
+      <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800/80 mb-6">
         <button
           onClick={() => { if (!isLogin) toggleTab(); }}
           className={`py-2 text-xs font-black rounded-lg transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 ${
-            isLogin 
-              ? 'bg-gradient-to-r from-indigo-505 to-indigo-600 text-white shadow' 
+            isLogin
+              ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
           }`}
           disabled={loading}
@@ -184,8 +192,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         <button
           onClick={() => { if (isLogin) toggleTab(); }}
           className={`py-2 text-xs font-black rounded-lg transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 ${
-            !isLogin 
-              ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow' 
+            !isLogin
+              ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
           }`}
           disabled={loading}
@@ -195,7 +203,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         </button>
       </div>
 
-      {/* Error and Success Banners */}
+      {/* 에러/성공 메시지 */}
       <AnimatePresence mode="wait">
         {errorMsg && (
           <motion.div
@@ -208,7 +216,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             <span>{errorMsg}</span>
           </motion.div>
         )}
-
         {successMsg && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -222,10 +229,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         )}
       </AnimatePresence>
 
-      {/* Main Authentication Form */}
+      {/* 입력 폼 */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        
-        {/* Username Input Field */}
         <div className="space-y-1.5">
           <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono block text-left">
             사용자 이름 (아이디)
@@ -238,10 +243,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
               type="text"
               placeholder="영문, 숫자만 (최소 3자)"
               value={username}
-              onChange={(e) => {
-                setUsername(e.target.value);
-                if (errorMsg) setErrorMsg('');
-              }}
+              onChange={(e) => { setUsername(e.target.value); if (errorMsg) setErrorMsg(''); }}
               disabled={loading}
               maxLength={15}
               className={`w-full bg-slate-950 text-white pl-10 pr-4 py-3 text-sm rounded-xl border font-sans font-bold placeholder:text-slate-600 transition-all focus:outline-none ${
@@ -253,7 +255,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           </div>
         </div>
 
-        {/* Password Input Field */}
         <div className="space-y-1.5">
           <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono block text-left">
             비밀번호
@@ -264,12 +265,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             </span>
             <input
               type={showPassword ? 'text' : 'password'}
-              placeholder="최소 4자 이상"
+              placeholder="최소 6자 이상"
               value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (errorMsg) setErrorMsg('');
-              }}
+              onChange={(e) => { setPassword(e.target.value); if (errorMsg) setErrorMsg(''); }}
               disabled={loading}
               maxLength={20}
               className={`w-full bg-slate-950 text-white pl-10 pr-12 py-3 text-sm rounded-xl border font-sans font-bold placeholder:text-slate-600 transition-all focus:outline-none ${
@@ -281,14 +279,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-350 transition-colors cursor-pointer"
+              className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
             >
-              {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
-        {/* Password Confirmation for Registration */}
         <AnimatePresence>
           {!isLogin && (
             <motion.div
@@ -308,10 +305,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="비밀번호 동일하게 입력"
                   value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    if (errorMsg) setErrorMsg('');
-                  }}
+                  onChange={(e) => { setConfirmPassword(e.target.value); if (errorMsg) setErrorMsg(''); }}
                   disabled={loading}
                   maxLength={20}
                   className="w-full bg-slate-950 text-white pl-10 pr-12 py-3 text-sm rounded-xl border border-slate-800 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/30 font-sans font-bold placeholder:text-slate-600 transition-all focus:outline-none"
@@ -321,14 +315,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           )}
         </AnimatePresence>
 
-        {/* Submit Actions */}
         <button
           type="submit"
           disabled={loading}
           className={`w-full py-4 font-sans font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2 mt-2 font-mono ${
             isLogin
-              ? 'bg-gradient-to-r from-indigo-550 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white shadow-indigo-650/15'
-              : 'bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 text-white shadow-rose-650/15'
+              ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white'
+              : 'bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 text-white'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {loading ? (
@@ -340,15 +333,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             </>
           )}
         </button>
-
       </form>
 
-      {/* Footer hint */}
       <div className="text-center mt-6 text-[10px] text-slate-500 font-medium">
-        <p>계정 데이터는 현재 브라우저의 안전한 로컬 저장소(LocalStorage)에</p>
-        <p className="mt-0.5">사용자별로 완벽히 분할되어 영구 저장됩니다.</p>
+        {dbMode
+          ? <p>계정 데이터는 Supabase 클라우드 데이터베이스에 안전하게 저장됩니다.</p>
+          : <p>로컬 모드: 데이터는 이 브라우저의 로컬 저장소에 저장됩니다.</p>
+        }
       </div>
-
     </div>
   );
 };
