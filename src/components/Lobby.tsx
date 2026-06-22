@@ -587,7 +587,7 @@ export const Lobby: React.FC<LobbyProps> = ({
               {/* VS Split Layout */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center w-full mt-6">
                 {/* Left side card (You) */}
-                <div className={`p-6 rounded-3xl text-center shadow-lg relative overflow-hidden flex flex-col justify-between h-[210px] border ${
+                <div className={`md:col-span-5 p-6 rounded-3xl text-center shadow-lg relative overflow-hidden flex flex-col justify-between h-[210px] border ${
                   queueType === 'ranked' 
                     ? 'bg-gradient-to-t from-slate-900 to-rose-950/20 border-rose-500/40' 
                     : 'bg-gradient-to-t from-slate-900 to-indigo-950/30 border-indigo-500/30'
@@ -657,7 +657,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                 </div>
 
                 {/* Right side card (Enemy Bot) */}
-                <div className={`p-6 rounded-3xl text-center shadow-lg relative overflow-hidden flex flex-col justify-between h-[210px] border ${
+                <div className={`md:col-span-5 p-6 rounded-3xl text-center shadow-lg relative overflow-hidden flex flex-col justify-between h-[210px] border ${
                   queueType === 'ranked' 
                     ? 'bg-gradient-to-t from-slate-900 to-rose-950/20 border-rose-500/40' 
                     : 'bg-gradient-to-t from-slate-900 to-rose-950/30 border-rose-500/30'
