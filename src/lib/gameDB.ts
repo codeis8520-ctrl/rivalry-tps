@@ -4,8 +4,16 @@ import { PlayerStats, CrosshairSettings, WeaponType } from '../types';
 import { DEFAULT_CROSSHAIR } from '../components/CrosshairEditor';
 
 const GAME_DOMAIN = 'rivalry-game.app';
-export const toEmail = (username: string) =>
-  `${username.trim().toLowerCase()}@${GAME_DOMAIN}`;
+
+// username(한국어 포함 모든 문자) → 유효한 이메일 로컬파트로 변환
+// btoa(encodeURIComponent) 사용해 base64url 인코딩
+export const toEmail = (username: string): string => {
+  const encoded = btoa(encodeURIComponent(username.trim().toLowerCase()))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+  return `u${encoded}@${GAME_DOMAIN}`;
+};
 
 export interface PlayerProfile {
   stats: PlayerStats;

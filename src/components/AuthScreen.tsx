@@ -26,12 +26,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       gameAudio.playCrateRollSound();
       return false;
     }
-    const regex = /^[a-zA-Z0-9_]+$/;
-    if (!regex.test(username)) {
-      setErrorMsg('사용자 이름은 영문, 숫자, 언더바(_)만 가능합니다.');
-      gameAudio.playCrateRollSound();
-      return false;
-    }
     if (!password || password.length < 6) {
       setErrorMsg('비밀번호는 최소 6자 이상이어야 합니다.');
       gameAudio.playCrateRollSound();
@@ -241,7 +235,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             </span>
             <input
               type="text"
-              placeholder="영문, 숫자만 (최소 3자)"
+              placeholder="닉네임 (최소 3자, 한국어 가능)"
               value={username}
               onChange={(e) => { setUsername(e.target.value); if (errorMsg) setErrorMsg(''); }}
               disabled={loading}
