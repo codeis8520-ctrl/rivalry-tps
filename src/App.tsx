@@ -5,8 +5,8 @@ import { Lobby } from './components/Lobby';
 import { GameCanvas } from './components/GameCanvas';
 import { AuthScreen } from './components/AuthScreen';
 import { gameAudio } from './audio';
-import { supabase, isSupabaseConfigured } from './lib/supabase';
-import { loadPlayerProfile, savePlayerProfile, signOutUser, getCurrentUserId } from './lib/gameDB';
+import { isSupabaseConfigured } from './lib/supabase';
+import { loadPlayerProfile, savePlayerProfile, signOutUser } from './lib/gameDB';
 
 const DEFAULT_STATS: PlayerStats = {
   wins: 0, losses: 0, kills: 0, deaths: 0, headshots: 0,
@@ -29,7 +29,6 @@ const ls = {
 export default function App() {
   const [screen, setScreen] = useState<'lobby' | 'game'>('lobby');
   const [currentUser, setCurrentUser] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   const [stats, setStats] = useState<PlayerStats>(DEFAULT_STATS);
@@ -72,16 +71,15 @@ export default function App() {
   };
 
   // 플레이어 데이터 로드 (DB 우선, 로컬 폴백)
-  const loadUserData = async (username: string, userId: string | null) => {
-    if (isSupabaseConfigured() && userId) {
-      const profile = await loadPlayerProfile(userId);
+  const loadUserData = async (username: string) => {
+    if (isSupabaseConfigured()) {
+      const profile = await loadPlayerProfile(username);
       setStats(profile.stats);
       setInventory(profile.inventory);
       setEquippedSkins(profile.equippedSkins);
       setLoadoutSlots(profile.loadoutSlots);
       setCrosshair(profile.crosshair);
-
-      // 로컬에도 캐시
+      // 로컬 캐시도 갱신
       const k = username.trim().toLowerCase();
       ls.set(`rivals_user_${k}_stats`, profile.stats);
       ls.set(`rivals_user_${k}_inventory`, profile.inventory);
@@ -89,7 +87,6 @@ export default function App() {
       ls.set(`rivals_user_${k}_loadout_slots`, profile.loadoutSlots);
       ls.set(`rivals_user_${k}_crosshair`, profile.crosshair);
     } else {
-      // 로컬 모드 폴백
       const k = username.trim().toLowerCase();
       const s = ls.get<PlayerStats>(`rivals_user_${k}_stats`, DEFAULT_STATS);
       if (s.rankedRP === undefined) s.rankedRP = 100;
@@ -101,108 +98,45 @@ export default function App() {
     }
   };
 
-  // Supabase 세션 감지 (앱 시작 시)
+  // 앱 시작 시 localStorage 세션 복원
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
-      // 로컬 모드: localStorage에서 현재 유저 복원
-      const saved = localStorage.getItem('rivals_current_logged_in_user');
-      if (saved) {
-        setCurrentUser(saved);
-        loadUserData(saved, null);
-      }
+    const saved = localStorage.getItem('rivals_current_logged_in_user');
+    if (saved) {
+      setCurrentUser(saved);
+      loadUserData(saved).finally(() => setAuthLoading(false));
+    } else {
       setAuthLoading(false);
-      return;
     }
-
-    // Supabase 모드: 기존 세션 확인
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session?.user) {
-        const userId = data.session.user.id;
-        // username은 email에서 추출 (username@rivalry-game.app 형식)
-        const email = data.session.user.email ?? '';
-        const username = email.split('@')[0];
-        setCurrentUser(username);
-        setCurrentUserId(userId);
-        await loadUserData(username, userId);
-      }
-      setAuthLoading(false);
-    });
-
-    // 세션 변경 구독
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
-        setCurrentUser(null);
-        setCurrentUserId(null);
-        setStats(DEFAULT_STATS);
-        setInventory(DEFAULT_INVENTORY);
-        setEquippedSkins(DEFAULT_EQUIPPED);
-        setLoadoutSlots(DEFAULT_LOADOUT);
-        setCrosshair(DEFAULT_CROSSHAIR);
-        setScreen('lobby');
-      }
-    });
-
-    return () => { listener.subscription.unsubscribe(); };
   }, []);
 
-  // 로컬 캐시 동기화 (항상 실행)
-  useEffect(() => {
-    if (!currentUser) return;
-    ls.set(lsKey('stats'), stats);
-  }, [stats, currentUser]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    ls.set(lsKey('inventory'), inventory);
-  }, [inventory, currentUser]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    ls.set(lsKey('equipped_skins'), equippedSkins);
-  }, [equippedSkins, currentUser]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    ls.set(lsKey('loadout_slots'), loadoutSlots);
-  }, [loadoutSlots, currentUser]);
-
+  // 로컬 캐시 동기화
+  useEffect(() => { if (currentUser) ls.set(lsKey('stats'), stats); }, [stats, currentUser]);
+  useEffect(() => { if (currentUser) ls.set(lsKey('inventory'), inventory); }, [inventory, currentUser]);
+  useEffect(() => { if (currentUser) ls.set(lsKey('equipped_skins'), equippedSkins); }, [equippedSkins, currentUser]);
+  useEffect(() => { if (currentUser) ls.set(lsKey('loadout_slots'), loadoutSlots); }, [loadoutSlots, currentUser]);
   useEffect(() => {
     if (!currentUser) return;
     ls.set(lsKey('crosshair'), crosshair);
-    // 크로스헤어는 즉시 Supabase 저장
-    if (isSupabaseConfigured() && currentUserId) {
-      scheduleSave(currentUserId, { crosshair });
-    }
-  }, [crosshair, currentUser, currentUserId]);
+    if (isSupabaseConfigured()) scheduleSave(currentUser, { crosshair });
+  }, [crosshair, currentUser]);
 
-  // 로그인 콜백 (AuthScreen에서 호출)
+  // 로그인 콜백
   const handleLogin = async (username: string) => {
     localStorage.setItem('rivals_current_logged_in_user', username);
     setCurrentUser(username);
-
-    let userId: string | null = null;
-    if (isSupabaseConfigured()) {
-      userId = await getCurrentUserId();
-      setCurrentUserId(userId);
-    }
-    await loadUserData(username, userId);
+    await loadUserData(username);
   };
 
   // 로그아웃
   const handleLogout = async () => {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
-      // 보류 중인 저장 즉시 실행
-      if (currentUserId && Object.keys(pendingSaveRef.current).length > 0) {
-        await savePlayerProfile(currentUserId, pendingSaveRef.current);
+      if (currentUser && Object.keys(pendingSaveRef.current).length > 0) {
+        await savePlayerProfile(currentUser, pendingSaveRef.current);
         pendingSaveRef.current = {};
       }
     }
-    if (isSupabaseConfigured()) {
-      await signOutUser();
-    }
     setCurrentUser(null);
-    setCurrentUserId(null);
     localStorage.removeItem('rivals_current_logged_in_user');
   };
 
@@ -292,9 +226,9 @@ export default function App() {
     setScreen('lobby');
 
     // 게임 종료 시 즉시 Supabase 저장
-    if (isSupabaseConfigured() && currentUserId && updatedStats) {
+    if (isSupabaseConfigured() && currentUser && updatedStats) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      await savePlayerProfile(currentUserId, { stats: updatedStats });
+      await savePlayerProfile(currentUser, { stats: updatedStats });
     }
   };
 
@@ -302,25 +236,25 @@ export default function App() {
   const handleUpdateStats = useCallback((updater: PlayerStats | ((prev: PlayerStats) => PlayerStats)) => {
     setStats((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      if (isSupabaseConfigured() && currentUserId) scheduleSave(currentUserId, { stats: next });
+      if (isSupabaseConfigured() && currentUser) scheduleSave(currentUser, { stats: next });
       return next;
     });
-  }, [currentUserId, scheduleSave]);
+  }, [currentUser, scheduleSave]);
 
   const handleUpdateInventory = useCallback((inv: string[]) => {
     setInventory(inv);
-    if (isSupabaseConfigured() && currentUserId) scheduleSave(currentUserId, { inventory: inv });
-  }, [currentUserId, scheduleSave]);
+    if (isSupabaseConfigured() && currentUser) scheduleSave(currentUser, { inventory: inv });
+  }, [currentUser, scheduleSave]);
 
   const handleUpdateEquippedSkins = useCallback((skins: Record<string, string>) => {
     setEquippedSkins(skins);
-    if (isSupabaseConfigured() && currentUserId) scheduleSave(currentUserId, { equippedSkins: skins });
-  }, [currentUserId, scheduleSave]);
+    if (isSupabaseConfigured() && currentUser) scheduleSave(currentUser, { equippedSkins: skins });
+  }, [currentUser, scheduleSave]);
 
   const handleUpdateLoadoutSlots = useCallback((slots: Record<string, WeaponType>) => {
     setLoadoutSlots(slots);
-    if (isSupabaseConfigured() && currentUserId) scheduleSave(currentUserId, { loadoutSlots: slots });
-  }, [currentUserId, scheduleSave]);
+    if (isSupabaseConfigured() && currentUser) scheduleSave(currentUser, { loadoutSlots: slots });
+  }, [currentUser, scheduleSave]);
 
   const isGameActive = currentUser && screen === 'game' && activeSession;
 
