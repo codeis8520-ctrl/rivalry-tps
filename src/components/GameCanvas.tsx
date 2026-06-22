@@ -392,12 +392,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const mouseRef = useRef({ x: 0, y: 0, clicked: false });
   const cameraRef = useRef({ x: 700, y: 500 });
 
-  // Mobile touch controls
+  // Mobile touch controls — fixed joystick
   const joystickTouchIdRef = useRef<number | null>(null);
   const aimTouchIdRef = useRef<number | null>(null);
-  const joystickBaseRef = useRef<{ x: number; y: number } | null>(null);
-  const [joystickVis, setJoystickVis] = useState<{ baseX: number; baseY: number; stickX: number; stickY: number } | null>(null);
+  const joystickElemRef = useRef<HTMLDivElement>(null);
+  const [joystickActive, setJoystickActive] = useState(false);
+  const [joystickStick, setJoystickStick] = useState({ x: 0, y: 0 }); // px offset from joystick center
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const JOYSTICK_MAX_R = 40; // max travel radius in px
 
   // Collections
   const bulletsRef = useRef<Bullet[]>([]);
@@ -479,26 +481,29 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     botRef.current.chatBubbleExpiry = Date.now() + 3000;
   };
 
-  // --- TOUCH CONTROL HANDLERS ---
+  // --- TOUCH CONTROL HANDLERS (fixed joystick) ---
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
-      const tx = touch.clientX - rect.left;
-      const ty = touch.clientY - rect.top;
 
-      if (tx < rect.width / 2 && joystickTouchIdRef.current === null) {
-        joystickTouchIdRef.current = touch.identifier;
-        joystickBaseRef.current = { x: tx, y: ty };
-        setJoystickVis({ baseX: tx, baseY: ty, stickX: tx, stickY: ty });
-      } else if (tx >= rect.width / 2 && aimTouchIdRef.current === null) {
+      // Check if touch lands on/near the fixed joystick element
+      if (joystickElemRef.current && joystickTouchIdRef.current === null) {
+        const jr = joystickElemRef.current.getBoundingClientRect();
+        const jcx = jr.left + jr.width / 2;
+        const jcy = jr.top + jr.height / 2;
+        if (Math.hypot(touch.clientX - jcx, touch.clientY - jcy) < jr.width * 0.75) {
+          joystickTouchIdRef.current = touch.identifier;
+          setJoystickActive(true);
+          continue;
+        }
+      }
+
+      // Everything else = aim + fire
+      if (aimTouchIdRef.current === null) {
         aimTouchIdRef.current = touch.identifier;
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const cr = canvas.getBoundingClientRect();
+        const cr = canvasRef.current?.getBoundingClientRect();
+        if (cr) {
           mouseRef.current.x = touch.clientX - cr.left;
           mouseRef.current.y = touch.clientY - cr.top;
         }
@@ -512,36 +517,28 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
 
-      if (touch.identifier === joystickTouchIdRef.current && joystickBaseRef.current) {
-        const rect = containerRef.current?.getBoundingClientRect();
-        if (!rect) continue;
-        const tx = touch.clientX - rect.left;
-        const ty = touch.clientY - rect.top;
-        const dx = tx - joystickBaseRef.current.x;
-        const dy = ty - joystickBaseRef.current.y;
+      if (touch.identifier === joystickTouchIdRef.current && joystickElemRef.current) {
+        const jr = joystickElemRef.current.getBoundingClientRect();
+        const jcx = jr.left + jr.width / 2;
+        const jcy = jr.top + jr.height / 2;
+        const dx = touch.clientX - jcx;
+        const dy = touch.clientY - jcy;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxR = 55;
-        const cDist = Math.min(dist, maxR);
         const normDx = dist > 0 ? dx / dist : 0;
         const normDy = dist > 0 ? dy / dist : 0;
+        const cDist = Math.min(dist, JOYSTICK_MAX_R);
 
-        setJoystickVis({
-          baseX: joystickBaseRef.current.x,
-          baseY: joystickBaseRef.current.y,
-          stickX: joystickBaseRef.current.x + normDx * cDist,
-          stickY: joystickBaseRef.current.y + normDy * cDist,
-        });
+        setJoystickStick({ x: normDx * cDist, y: normDy * cDist });
 
-        const thr = 0.25;
-        const active = cDist > 12;
+        const thr = 0.28;
+        const active = cDist > 8;
         keysRef.current['w'] = active && normDy < -thr;
         keysRef.current['s'] = active && normDy > thr;
         keysRef.current['a'] = active && normDx < -thr;
         keysRef.current['d'] = active && normDx > thr;
       } else if (touch.identifier === aimTouchIdRef.current) {
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const cr = canvas.getBoundingClientRect();
+        const cr = canvasRef.current?.getBoundingClientRect();
+        if (cr) {
           mouseRef.current.x = touch.clientX - cr.left;
           mouseRef.current.y = touch.clientY - cr.top;
         }
@@ -555,8 +552,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const touch = e.changedTouches[i];
       if (touch.identifier === joystickTouchIdRef.current) {
         joystickTouchIdRef.current = null;
-        joystickBaseRef.current = null;
-        setJoystickVis(null);
+        setJoystickActive(false);
+        setJoystickStick({ x: 0, y: 0 });
         keysRef.current['w'] = false;
         keysRef.current['s'] = false;
         keysRef.current['a'] = false;
@@ -2290,31 +2287,79 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         >
           <canvas ref={canvasRef} className="block w-full h-full" />
 
-          {/* Virtual joystick overlay (mobile only) */}
-          {joystickVis && (
-            <div className="absolute inset-0 pointer-events-none xl:hidden">
+          {/* ── FIXED VIRTUAL JOYSTICK (mobile only) ── */}
+          <div
+            className="absolute xl:hidden pointer-events-none select-none"
+            style={{ left: 16, bottom: 76 }}
+          >
+            {/* Outer ring (base) */}
+            <div
+              ref={joystickElemRef}
+              className="relative flex items-center justify-center rounded-full"
+              style={{
+                width: 104,
+                height: 104,
+                background: joystickActive
+                  ? 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, rgba(15,23,42,0.55) 100%)'
+                  : 'radial-gradient(circle, rgba(255,255,255,0.04) 0%, rgba(15,23,42,0.35) 100%)',
+                border: joystickActive ? '2px solid rgba(99,102,241,0.6)' : '2px solid rgba(255,255,255,0.18)',
+                boxShadow: joystickActive ? '0 0 16px rgba(99,102,241,0.25)' : 'none',
+                transition: 'border 0.15s, background 0.15s',
+              }}
+            >
+              {/* Guide cross lines */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div style={{ position: 'absolute', width: '100%', height: 1, background: 'rgba(255,255,255,0.08)' }} />
+                <div style={{ position: 'absolute', height: '100%', width: 1, background: 'rgba(255,255,255,0.08)' }} />
+              </div>
+
+              {/* Stick knob */}
               <div
-                className="absolute rounded-full border-2 border-white/25 bg-white/5"
-                style={{ width: 110, height: 110, left: joystickVis.baseX - 55, top: joystickVis.baseY - 55 }}
-              />
-              <div
-                className="absolute rounded-full bg-white/35 border border-white/50"
-                style={{ width: 44, height: 44, left: joystickVis.stickX - 22, top: joystickVis.stickY - 22 }}
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: '50%',
+                  background: joystickActive
+                    ? 'radial-gradient(circle at 35% 35%, rgba(129,140,248,0.9), rgba(99,102,241,0.7))'
+                    : 'radial-gradient(circle at 35% 35%, rgba(255,255,255,0.45), rgba(255,255,255,0.2))',
+                  border: joystickActive ? '2px solid rgba(165,180,252,0.8)' : '2px solid rgba(255,255,255,0.3)',
+                  boxShadow: joystickActive ? '0 2px 8px rgba(99,102,241,0.4)' : '0 2px 4px rgba(0,0,0,0.3)',
+                  transform: `translate(${joystickStick.x}px, ${joystickStick.y}px)`,
+                  transition: joystickActive ? 'none' : 'transform 0.12s ease-out',
+                  position: 'absolute',
+                }}
               />
             </div>
-          )}
+            <div style={{ textAlign: 'center', marginTop: 4, fontSize: 9, color: 'rgba(255,255,255,0.25)', fontWeight: 700, letterSpacing: 2 }}>
+              MOVE
+            </div>
+          </div>
 
-          {/* Mobile touch hint (shown when no touch active) */}
-          {!joystickVis && (
-            <div className="absolute bottom-20 left-4 pointer-events-none xl:hidden opacity-30">
-              <div className="text-[9px] text-white font-bold text-center">
-                <div className="w-12 h-12 rounded-full border border-white/30 flex items-center justify-center mb-1 mx-auto">
-                  <span className="text-lg">👆</span>
-                </div>
-                이동
+          {/* ── AIM + FIRE HINT (right side, mobile only) ── */}
+          <div
+            className="absolute xl:hidden pointer-events-none select-none flex flex-col items-center"
+            style={{ right: 20, bottom: 76 }}
+          >
+            <div
+              style={{
+                width: 88,
+                height: 88,
+                borderRadius: '50%',
+                border: '2px solid rgba(239,68,68,0.3)',
+                background: 'radial-gradient(circle, rgba(239,68,68,0.08) 0%, rgba(15,23,42,0.25) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22 }}>🎯</div>
               </div>
             </div>
-          )}
+            <div style={{ marginTop: 4, fontSize: 9, color: 'rgba(255,255,255,0.25)', fontWeight: 700, letterSpacing: 2 }}>
+              AIM+FIRE
+            </div>
+          </div>
 
           {/* BIG OVERLAYS - SUDDEN WARMUP countdown */}
           {gameState.roundPhase === 'warmup' && (
