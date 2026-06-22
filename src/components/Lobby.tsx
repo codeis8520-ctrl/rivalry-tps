@@ -433,9 +433,9 @@ export const Lobby: React.FC<LobbyProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-[580px] bg-slate-950 text-white rounded-3xl overflow-hidden shadow-2xl border border-slate-800 select-none pb-6">
+    <div className="flex flex-col min-h-screen sm:min-h-[580px] bg-slate-950 text-white rounded-none sm:rounded-3xl overflow-hidden shadow-none sm:shadow-2xl border-0 sm:border border-slate-800 select-none pb-6">
       {/* HEADER LOGO BAR */}
-      <div className="flex flex-col md:flex-row items-center justify-between px-6 bg-slate-900 border-b border-slate-800">
+      <div className="flex flex-col md:flex-row items-center justify-between px-3 sm:px-6 bg-slate-900 border-b border-slate-800">
         <div className="flex items-center gap-3.5 py-4">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/10">
             <Trophy className="w-5 h-5 text-white animate-bounce" />
@@ -449,7 +449,7 @@ export const Lobby: React.FC<LobbyProps> = ({
         </div>
 
         {/* STATS AND CURRENCY HUB */}
-        <div className="flex flex-wrap items-center gap-3.5 py-2.5 md:py-0 border-t md:border-t-0 border-slate-800 w-full md:w-auto justify-end">
+        <div className="flex flex-nowrap overflow-x-auto items-center gap-2 sm:gap-3.5 py-2 md:py-0 border-t md:border-t-0 border-slate-800 w-full md:w-auto justify-start md:justify-end scrollbar-none shrink-0">
           {/* Logged-in User Profile */}
           {currentUser && (
             <div className="flex items-center gap-2 bg-slate-950 px-3.5 py-1.5 rounded-full border border-indigo-500/20 shadow-[0_0_12px_rgba(99,102,241,0.04)] animate-pulse">
@@ -839,88 +839,49 @@ export const Lobby: React.FC<LobbyProps> = ({
 
       {/* STANDARD LOBBY MAIN CARD & SIDEBAR NAVIGATION */}
       {matchmakingState === 'idle' && caseOpeningState === 'idle' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 flex-1">
-          {/* Main vertical sidebar tab selectors (col-span-3) */}
-          <div className="lg:col-span-3 flex flex-col gap-2 border-b lg:border-b-0 lg:border-r border-slate-800 pb-4 lg:pb-0 lg:pr-5">
-            <div className="text-[10px] font-extrabold text-indigo-400 tracking-wider mb-2 uppercase">로비 제어 사령부</div>
+        <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-6 lg:p-6 flex-1 min-h-0">
+          {/* Tab navigation: horizontal scroll on mobile, vertical sidebar on desktop */}
+          <div className="lg:col-span-3 flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-1 lg:gap-2 border-b lg:border-b-0 lg:border-r border-slate-800 px-3 lg:px-0 py-2 lg:py-0 lg:pr-5 shrink-0 scrollbar-none">
+            <div className="hidden lg:block text-[10px] font-extrabold text-indigo-400 tracking-wider mb-2 uppercase">로비 제어 사령부</div>
 
-            <button
-              onClick={() => { gameAudio.playClickSound(); setActiveTab('matchmaking'); }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                activeTab === 'matchmaking'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : 'bg-slate-900/50 text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Play className="w-4 h-4" />
-              <span>1v1 매치메이킹</span>
-            </button>
-
-            <button
-              onClick={() => { gameAudio.playClickSound(); setActiveTab('armory'); }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                activeTab === 'armory'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : 'bg-slate-900/50 text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Hammer className="w-4 h-4" />
-              <span>무기고 로드아웃</span>
-            </button>
-
-            <button
-              onClick={() => { gameAudio.playClickSound(); setActiveTab('shop'); }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                activeTab === 'shop'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : 'bg-slate-900/50 text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <ShoppingBag className="w-4 h-4" />
-              <span>크레이트 상점</span>
-            </button>
-
-            <button
-              onClick={() => { gameAudio.playClickSound(); setActiveTab('crosshair'); }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                activeTab === 'crosshair'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : 'bg-slate-900/50 text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Crosshair className="w-4 h-4" />
-              <span>조준점 Sandbox</span>
-            </button>
-
-            <button
-              onClick={() => { gameAudio.playClickSound(); setActiveTab('stats'); }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                activeTab === 'stats'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : 'bg-slate-900/50 text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <User className="w-4 h-4" />
-              <span>내 커리어 전적</span>
-            </button>
+            {[
+              { id: 'matchmaking', label: '매치메이킹', icon: <Play className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> },
+              { id: 'armory', label: '무기고', icon: <Hammer className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> },
+              { id: 'shop', label: '상점', icon: <ShoppingBag className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> },
+              { id: 'crosshair', label: '조준점', icon: <Crosshair className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> },
+              { id: 'stats', label: '전적', icon: <User className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => { gameAudio.playClickSound(); setActiveTab(tab.id as any); }}
+                className={`flex items-center gap-1.5 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-lg lg:rounded-xl text-xs lg:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                  activeTab === tab.id
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                    : 'bg-slate-900/50 text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            ))}
 
             {currentUser?.trim().toLowerCase() === 'yechan0920yo' && (
               <button
                 onClick={() => { gameAudio.playClickSound(); setActiveTab('admin'); }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-lg lg:rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'admin'
                     ? 'bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-lg shadow-rose-600/30 border border-rose-500/40'
                     : 'bg-slate-900/50 text-rose-300 border border-rose-500/10 hover:text-white hover:bg-rose-950/40 hover:border-rose-500/30'
                 }`}
               >
-                <ShieldAlert className="w-4 h-4 text-rose-400 animate-pulse" />
-                <span className="font-mono tracking-wider font-extrabold uppercase text-[11px] sm:text-xs">🛡️ 소버린 콘솔</span>
+                <ShieldAlert className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-rose-400 animate-pulse" />
+                <span className="font-mono tracking-wider font-extrabold uppercase">소버린</span>
               </button>
             )}
           </div>
 
           {/* Core dynamic content window (col-span-9) */}
-          <div className="lg:col-span-9" id="lobby-active-panel">
+          <div className="lg:col-span-9 flex-1 overflow-y-auto px-3 sm:px-4 lg:px-0 py-4 lg:py-0" id="lobby-active-panel">
 
             {/* TAB 1: MATCHMAKING SCREEN (1V1 LOBBY) */}
             {activeTab === 'matchmaking' && (

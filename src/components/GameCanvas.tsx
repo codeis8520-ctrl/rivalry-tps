@@ -392,6 +392,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const mouseRef = useRef({ x: 0, y: 0, clicked: false });
   const cameraRef = useRef({ x: 700, y: 500 });
 
+  // Mobile touch controls
+  const joystickTouchIdRef = useRef<number | null>(null);
+  const aimTouchIdRef = useRef<number | null>(null);
+  const joystickBaseRef = useRef<{ x: number; y: number } | null>(null);
+  const [joystickVis, setJoystickVis] = useState<{ baseX: number; baseY: number; stickX: number; stickY: number } | null>(null);
+  const [showMobileChat, setShowMobileChat] = useState(false);
+
   // Collections
   const bulletsRef = useRef<Bullet[]>([]);
   const rocketsRef = useRef<Rocket[]>([]);
@@ -470,6 +477,95 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const triggerBotChatBubble = (text: string) => {
     botRef.current.chatBubbleText = text;
     botRef.current.chatBubbleExpiry = Date.now() + 3000;
+  };
+
+  // --- TOUCH CONTROL HANDLERS ---
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      const tx = touch.clientX - rect.left;
+      const ty = touch.clientY - rect.top;
+
+      if (tx < rect.width / 2 && joystickTouchIdRef.current === null) {
+        joystickTouchIdRef.current = touch.identifier;
+        joystickBaseRef.current = { x: tx, y: ty };
+        setJoystickVis({ baseX: tx, baseY: ty, stickX: tx, stickY: ty });
+      } else if (tx >= rect.width / 2 && aimTouchIdRef.current === null) {
+        aimTouchIdRef.current = touch.identifier;
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const cr = canvas.getBoundingClientRect();
+          mouseRef.current.x = touch.clientX - cr.left;
+          mouseRef.current.y = touch.clientY - cr.top;
+        }
+        mouseRef.current.clicked = true;
+      }
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+
+      if (touch.identifier === joystickTouchIdRef.current && joystickBaseRef.current) {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) continue;
+        const tx = touch.clientX - rect.left;
+        const ty = touch.clientY - rect.top;
+        const dx = tx - joystickBaseRef.current.x;
+        const dy = ty - joystickBaseRef.current.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const maxR = 55;
+        const cDist = Math.min(dist, maxR);
+        const normDx = dist > 0 ? dx / dist : 0;
+        const normDy = dist > 0 ? dy / dist : 0;
+
+        setJoystickVis({
+          baseX: joystickBaseRef.current.x,
+          baseY: joystickBaseRef.current.y,
+          stickX: joystickBaseRef.current.x + normDx * cDist,
+          stickY: joystickBaseRef.current.y + normDy * cDist,
+        });
+
+        const thr = 0.25;
+        const active = cDist > 12;
+        keysRef.current['w'] = active && normDy < -thr;
+        keysRef.current['s'] = active && normDy > thr;
+        keysRef.current['a'] = active && normDx < -thr;
+        keysRef.current['d'] = active && normDx > thr;
+      } else if (touch.identifier === aimTouchIdRef.current) {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const cr = canvas.getBoundingClientRect();
+          mouseRef.current.x = touch.clientX - cr.left;
+          mouseRef.current.y = touch.clientY - cr.top;
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      if (touch.identifier === joystickTouchIdRef.current) {
+        joystickTouchIdRef.current = null;
+        joystickBaseRef.current = null;
+        setJoystickVis(null);
+        keysRef.current['w'] = false;
+        keysRef.current['s'] = false;
+        keysRef.current['a'] = false;
+        keysRef.current['d'] = false;
+      } else if (touch.identifier === aimTouchIdRef.current) {
+        aimTouchIdRef.current = null;
+        mouseRef.current.clicked = false;
+      }
+    }
   };
 
   // Core setup and dynamic timers
@@ -700,7 +796,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const resizeCanvas = () => {
       if (containerRef.current && canvas) {
         canvas.width = containerRef.current.clientWidth;
-        canvas.height = Math.max(480, containerRef.current.clientHeight);
+        canvas.height = Math.max(180, containerRef.current.clientHeight);
       }
     };
     resizeCanvas();
@@ -2101,85 +2197,124 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   return (
-    <div className="flex flex-col bg-slate-950 text-white rounded-3xl overflow-hidden shadow-2xl border border-slate-800" h-full="true" id="gameplay-arena-container">
+    <div className="flex flex-col bg-slate-950 text-white rounded-none sm:rounded-3xl overflow-hidden shadow-none sm:shadow-2xl border-0 sm:border border-slate-800 h-full" id="gameplay-arena-container">
       {/* HUD Header */}
-      <div className="flex items-center justify-between bg-slate-900 px-6 py-4 border-b border-slate-800">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between bg-slate-900 px-2 sm:px-6 py-2 sm:py-4 border-b border-slate-800 gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <button
             onClick={() => {
               gameAudio.playClickSound();
               onQuit(gameState.playerScore, gameState.botScore, gameState.winner);
             }}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Exit Duel Lobby</span>
+            <span className="hidden sm:inline">Exit Duel Lobby</span>
           </button>
           
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
             <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded border font-mono tracking-wider ${
               gameMode === 'ranked' 
                 ? 'bg-rose-550/10 text-rose-400 border-rose-500/20 shadow-[0_0_8px_rgba(244,63,94,0.1)]' 
                 : 'bg-indigo-500/10 text-indigo-450 border-indigo-500/15'
             }`}>
-              {gameMode === 'ranked' ? '🏆 COMPETITIVE RANKED' : '⚔️ CASUAL SANDBOX'}
+              {gameMode === 'ranked' ? '🏆 RANKED' : '⚔️ CASUAL'}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2 sm:gap-6">
           {/* Round Score display */}
-          <div className="flex items-center gap-4 bg-slate-950 px-4 py-1.5 rounded-full border border-slate-800">
-            <span className="text-xs font-bold text-blue-400">YOU</span>
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-black text-white font-mono">{gameState.playerScore}</span>
+          <div className="flex items-center gap-2 sm:gap-4 bg-slate-950 px-2 sm:px-4 py-1.5 rounded-full border border-slate-800">
+            <span className="text-[10px] sm:text-xs font-bold text-blue-400">YOU</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-base sm:text-xl font-black text-white font-mono">{gameState.playerScore}</span>
               <span className="text-slate-600">:</span>
-              <span className="text-xl font-black text-white font-mono">{gameState.botScore}</span>
+              <span className="text-base sm:text-xl font-black text-white font-mono">{gameState.botScore}</span>
             </div>
-            <span className="text-xs font-bold text-red-400 uppercase">{bot.name.slice(0, 10)}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-red-400 uppercase">{bot.name.slice(0, 8)}</span>
           </div>
 
           {/* Round Countdown */}
           <div className="flex flex-col items-center">
-            <div className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">Round Time</div>
-            <div className={`text-lg font-black font-mono leading-none ${gameState.roundTimeLeft < 15 ? 'text-rose-500 animate-pulse' : 'text-slate-200'}`}>
-              00:{gameState.roundTimeLeft < 10 ? `0${gameState.roundTimeLeft}` : gameState.roundTimeLeft}
+            <div className="hidden sm:block text-[10px] text-slate-500 font-bold tracking-widest uppercase">Round Time</div>
+            <div className={`text-sm sm:text-lg font-black font-mono leading-none ${gameState.roundTimeLeft < 15 ? 'text-rose-500 animate-pulse' : 'text-slate-200'}`}>
+              {gameState.roundTimeLeft < 10 ? `0:0${gameState.roundTimeLeft}` : `0:${gameState.roundTimeLeft}`}
             </div>
           </div>
         </div>
 
-        {/* Audio controls */}
-        <button
-          onClick={handleToggleSound}
-          className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors"
-        >
-          {soundOn ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
-        </button>
+        {/* Right controls */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleToggleSound}
+            className="p-1.5 sm:p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors"
+          >
+            {soundOn ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+          </button>
+          {/* Mobile chat toggle */}
+          <button
+            onClick={() => setShowMobileChat(v => !v)}
+            className="xl:hidden p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors relative"
+          >
+            <Send className="w-4 h-4" />
+            {chatMessages.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full text-[7px] flex items-center justify-center font-bold text-white">
+                {chatMessages.length > 9 ? '9' : chatMessages.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Main split layout (Game Area on representational left, logs & loadouts on right) */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-0 relative flex-1 min-h-[500px]">
+      {/* Main split layout (Game Area on left, chat on right) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-0 relative flex-1 min-h-0">
         {/* Game Canvas stage (col-span-9) */}
         <div
           ref={containerRef}
-          className="xl:col-span-9 relative bg-slate-900 flex items-center justify-center cursor-crosshair overflow-hidden group min-h-[480px]"
+          className="xl:col-span-9 relative bg-slate-900 flex items-center justify-center cursor-crosshair overflow-hidden group min-h-[200px] flex-1"
+          style={{ touchAction: 'none' }}
           onMouseMove={(e) => {
             if (!canvasRef.current) return;
             const rect = canvasRef.current.getBoundingClientRect();
             mouseRef.current.x = e.clientX - rect.left;
             mouseRef.current.y = e.clientY - rect.top;
           }}
-          onMouseDown={() => {
-            mouseRef.current.clicked = true;
-          }}
-          onMouseUp={() => {
-            mouseRef.current.clicked = false;
-          }}
-          onMouseLeave={() => {
-            mouseRef.current.clicked = false;
-          }}
+          onMouseDown={() => { mouseRef.current.clicked = true; }}
+          onMouseUp={() => { mouseRef.current.clicked = false; }}
+          onMouseLeave={() => { mouseRef.current.clicked = false; }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
         >
           <canvas ref={canvasRef} className="block w-full h-full" />
+
+          {/* Virtual joystick overlay (mobile only) */}
+          {joystickVis && (
+            <div className="absolute inset-0 pointer-events-none xl:hidden">
+              <div
+                className="absolute rounded-full border-2 border-white/25 bg-white/5"
+                style={{ width: 110, height: 110, left: joystickVis.baseX - 55, top: joystickVis.baseY - 55 }}
+              />
+              <div
+                className="absolute rounded-full bg-white/35 border border-white/50"
+                style={{ width: 44, height: 44, left: joystickVis.stickX - 22, top: joystickVis.stickY - 22 }}
+              />
+            </div>
+          )}
+
+          {/* Mobile touch hint (shown when no touch active) */}
+          {!joystickVis && (
+            <div className="absolute bottom-20 left-4 pointer-events-none xl:hidden opacity-30">
+              <div className="text-[9px] text-white font-bold text-center">
+                <div className="w-12 h-12 rounded-full border border-white/30 flex items-center justify-center mb-1 mx-auto">
+                  <span className="text-lg">👆</span>
+                </div>
+                이동
+              </div>
+            </div>
+          )}
 
           {/* BIG OVERLAYS - SUDDEN WARMUP countdown */}
           {gameState.roundPhase === 'warmup' && (
@@ -2497,7 +2632,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           )}
 
           {/* SLOT-BASED WEAPON HUD BAR */}
-          <div className="absolute bottom-4 left-4 bg-slate-950/85 backdrop-blur-md p-2 rounded-2xl border border-slate-800/80 flex items-center gap-2 shadow-2xl select-none z-20">
+          <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 bg-slate-950/85 backdrop-blur-md p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-slate-800/80 flex items-center gap-1 sm:gap-2 shadow-2xl select-none z-20">
             {(['1', '2', '3', '4'] as const).map((slotNum) => {
               const { wep, skin } = getSlotData(slotNum);
               const isActive = currentSlot === slotNum;
@@ -2505,76 +2640,63 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               return (
                 <button
                   key={slotNum}
-                  onClick={() => {
-                    switchSlot(slotNum);
-                  }}
-                  className={`flex flex-col items-center justify-between px-3.5 py-2 rounded-xl border transition-all cursor-pointer select-none text-left min-w-[105px] relative ${
+                  onClick={() => switchSlot(slotNum)}
+                  className={`flex flex-col items-center justify-between px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border transition-all cursor-pointer select-none text-left min-w-[60px] sm:min-w-[105px] relative ${
                     isActive
                       ? 'bg-indigo-650/20 border-indigo-500 shadow-md scale-105'
                       : 'bg-slate-900/40 border-slate-800/50 hover:border-slate-700/80 text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   {/* Hotkey number badge */}
-                  <span className="absolute top-1 right-1 px-1 py-0.2 rounded bg-slate-950/70 text-[7px] font-mono font-bold border border-slate-800/50 text-slate-400">
+                  <span className="absolute top-0.5 right-0.5 px-1 rounded bg-slate-950/70 text-[7px] font-mono font-bold border border-slate-800/50 text-slate-400">
                     {slotNum}
                   </span>
 
-                  <span className="text-[8px] text-slate-500 font-bold uppercase leading-none mb-1">
-                    {slotNum === '1' ? 'Melee' : slotNum === '2' ? 'Secondary' : `Slot ${slotNum}`}
+                  <span className="hidden sm:block text-[8px] text-slate-500 font-bold uppercase leading-none mb-1">
+                    {slotNum === '1' ? 'Melee' : slotNum === '2' ? 'Sec.' : `S${slotNum}`}
                   </span>
 
-                  <div className="text-[10px] font-black text-white truncate max-w-[90px] leading-none uppercase flex items-center gap-1.5 mt-0.5">
+                  <div className="text-[9px] sm:text-[10px] font-black text-white truncate max-w-[50px] sm:max-w-[90px] leading-none uppercase flex items-center gap-1 mt-0.5">
                     <span style={{ color: skin.primaryColor }}>●</span>
-                    {wep.name.split(' ')[0]}
+                    <span className="hidden sm:inline">{wep.name.split(' ')[0]}</span>
+                    <span className="sm:hidden">{wep.name.split(' ')[0].slice(0, 4)}</span>
                   </div>
 
-                  {/* Small stats (ammo or melee icon) */}
-                  <div className="mt-2.5 flex items-center justify-between w-full text-[9px] font-mono font-bold leading-none">
+                  {/* Small stats */}
+                  <div className="mt-1.5 sm:mt-2.5 flex items-center justify-between w-full text-[8px] sm:text-[9px] font-mono font-bold leading-none">
                     {wep.type !== 'katana' ? (
                       <span className={isActive ? 'text-indigo-300' : 'text-slate-500'}>
                         {isActive ? playerCurrentAmmo : slotAmmosRef.current[slotNum]}/{wep.maxAmmo}
                       </span>
                     ) : (
-                      <Zap className="w-2.5 h-2.5 text-pink-500" />
+                      <Zap className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-pink-500" />
                     )}
-
-                    {/* Small skin name indicator if active */}
-                    {isActive ? (
-                      <span className="text-[7.5px] text-slate-400 font-sans truncate max-w-[45px] font-normal leading-none">
+                    {isActive && (
+                      <span className="hidden sm:inline text-[7.5px] text-slate-400 font-sans truncate max-w-[45px] font-normal leading-none">
                         {skin.name}
-                      </span>
-                    ) : (
-                      <span className="text-[7px] text-slate-600 font-normal leading-none truncate max-w-[45px]">
-                        Skin Equipped
                       </span>
                     )}
                   </div>
 
                   {/* Individual slot reloading bar */}
                   {isActive && playerIsReloading && (
-                    <div className="absolute inset-0 bg-slate-950/95 rounded-xl flex flex-col items-center justify-center gap-1 px-2">
-                      <span className="text-[8px] text-emerald-400 font-extrabold uppercase animate-pulse">재장전 (RELOAD)</span>
+                    <div className="absolute inset-0 bg-slate-950/95 rounded-xl flex flex-col items-center justify-center gap-1 px-1 sm:px-2">
+                      <span className="text-[7px] sm:text-[8px] text-emerald-400 font-extrabold uppercase animate-pulse">RELOAD</span>
                       <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          style={{ width: `${playerReloadProgress}%` }}
-                          className="h-full bg-emerald-400"
-                        />
+                        <div style={{ width: `${playerReloadProgress}%` }} className="h-full bg-emerald-400" />
                       </div>
                     </div>
                   )}
 
-                  {/* Katana/Scythe Dash Cooldown overlay */}
+                  {/* Katana Dash Cooldown overlay */}
                   {wep.type === 'katana' && katanaCooldownPercent > 0 && (
-                    <div className="absolute inset-0 bg-slate-950/95 rounded-xl flex flex-col items-center justify-center gap-1 px-2">
-                      <span className="text-[8px] text-pink-400 font-extrabold uppercase tracking-wider animate-pulse">대시 재대기</span>
-                      <span className="text-[10px] font-mono font-black text-pink-400">
-                        {((3000 * (katanaCooldownPercent / 105)) / 1000).toFixed(1)}초
+                    <div className="absolute inset-0 bg-slate-950/95 rounded-xl flex flex-col items-center justify-center gap-1 px-1 sm:px-2">
+                      <span className="text-[7px] sm:text-[8px] text-pink-400 font-extrabold uppercase animate-pulse">DASH</span>
+                      <span className="text-[9px] sm:text-[10px] font-mono font-black text-pink-400">
+                        {((3000 * (katanaCooldownPercent / 105)) / 1000).toFixed(1)}s
                       </span>
                       <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          style={{ width: `${katanaCooldownPercent}%` }}
-                          className="h-full bg-pink-500"
-                        />
+                        <div style={{ width: `${katanaCooldownPercent}%` }} className="h-full bg-pink-500" />
                       </div>
                     </div>
                   )}
@@ -2584,8 +2706,33 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           </div>
         </div>
 
+        {/* Mobile chat overlay */}
+        {showMobileChat && (
+          <div className="xl:hidden absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-sm flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900">
+              <span className="text-xs font-bold text-indigo-400">아레나 채팅 로그</span>
+              <button onClick={() => setShowMobileChat(false)} className="text-slate-400 hover:text-white p-1 cursor-pointer">✕</button>
+            </div>
+            <div className="flex-1 p-3 overflow-y-auto space-y-2 text-xs">
+              {chatMessages.length === 0 ? (
+                <div className="text-center text-slate-600 py-6 italic">로그 없음</div>
+              ) : chatMessages.map((msg) => (
+                <div key={msg.id} className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/40">
+                  <span className={`font-semibold mr-1.5 ${msg.sender === 'SYSTEM' ? 'text-indigo-400' : msg.sender === 'You' ? 'text-blue-400' : 'text-red-400'}`}>{msg.sender}:</span>
+                  <span className="text-slate-300">{msg.text}</span>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={sendChatMessage} className="p-2 border-t border-slate-800 flex gap-1.5">
+              <input type="text" placeholder="채팅..." value={customChatMessage} onChange={(e) => setCustomChatMessage(e.target.value)}
+                className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+              <button type="submit" className="p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg cursor-pointer"><Send className="w-3.5 h-3.5" /></button>
+            </form>
+          </div>
+        )}
+
         {/* Dynamic Rivals Chat Lobby Logs (col-span-3) */}
-        <div className="xl:col-span-3 flex flex-col bg-slate-900 border-t xl:border-t-0 xl:border-l border-slate-800 min-h-[160px]">
+        <div className="xl:col-span-3 hidden xl:flex flex-col bg-slate-900 border-t xl:border-t-0 xl:border-l border-slate-800">
           <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
             <span className="text-xs font-bold text-indigo-400 tracking-wider">아레나 대화 및 전투 로그</span>
             <span className="text-[9px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 font-mono font-bold uppercase">
@@ -2594,7 +2741,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           </div>
 
           {/* Scrollable messages log */}
-          <div className="flex-1 p-3 overflow-y-auto space-y-2 text-xs font-sans min-h-[120px] max-h-[220px] xl:max-h-none scrollbar-thin">
+          <div className="flex-1 p-3 overflow-y-auto space-y-2 text-xs font-sans scrollbar-thin">
             {chatMessages.length === 0 ? (
               <div className="text-center text-slate-600 py-6 italic">아직 기록된 로그가 없습니다.</div>
             ) : (

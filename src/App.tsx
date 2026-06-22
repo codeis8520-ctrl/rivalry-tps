@@ -328,33 +328,43 @@ export default function App() {
     setScreen('lobby');
   };
 
+  const isGameActive = currentUser && screen === 'game' && activeSession;
+
   return (
-    <div className="w-full min-h-screen bg-slate-950 flex items-center justify-center p-4 selection:bg-indigo-600/30">
-      <div className="w-full max-w-5xl">
-        {!currentUser ? (
-          <AuthScreen onLogin={handleLogin} />
-        ) : screen === 'lobby' ? (
-          <Lobby
-            stats={stats}
-            inventory={inventory}
-            equippedSkins={equippedSkins}
-            crosshair={crosshair}
-            soundEnabled={soundEnabled}
-            onSetSoundEnabled={setSoundEnabled}
-            onUpdateStats={setStats}
-            onUpdateInventory={setInventory}
-            onUpdateEquippedSkins={setEquippedSkins}
-            onUpdateCrosshair={setCrosshair}
-            onStartGame={handleStartGameSession}
-            loadoutSlots={loadoutSlots}
-            onUpdateLoadoutSlots={setLoadoutSlots}
-            lastRankedReport={lastRankedReport}
-            onClearRankedReport={() => setLastRankedReport(null)}
-            currentUser={currentUser}
-            onLogout={handleLogout}
-          />
-        ) : (
-          activeSession && (
+    <div className={`w-full bg-slate-950 selection:bg-indigo-600/30 ${isGameActive ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
+      {!currentUser ? (
+        <div className="flex items-center justify-center min-h-screen p-4">
+          <div className="w-full max-w-md">
+            <AuthScreen onLogin={handleLogin} />
+          </div>
+        </div>
+      ) : screen === 'lobby' ? (
+        <div className="flex items-center justify-start sm:justify-center min-h-screen p-0 sm:p-4">
+          <div className="w-full max-w-5xl">
+            <Lobby
+              stats={stats}
+              inventory={inventory}
+              equippedSkins={equippedSkins}
+              crosshair={crosshair}
+              soundEnabled={soundEnabled}
+              onSetSoundEnabled={setSoundEnabled}
+              onUpdateStats={setStats}
+              onUpdateInventory={setInventory}
+              onUpdateEquippedSkins={setEquippedSkins}
+              onUpdateCrosshair={setCrosshair}
+              onStartGame={handleStartGameSession}
+              loadoutSlots={loadoutSlots}
+              onUpdateLoadoutSlots={setLoadoutSlots}
+              lastRankedReport={lastRankedReport}
+              onClearRankedReport={() => setLastRankedReport(null)}
+              currentUser={currentUser}
+              onLogout={handleLogout}
+            />
+          </div>
+        </div>
+      ) : (
+        activeSession && (
+          <div className="w-full h-screen flex flex-col">
             <GameCanvas
               playerWeapon={null as any}
               playerSkin={null as any}
@@ -366,9 +376,9 @@ export default function App() {
               equippedSkins={activeSession.equippedSkins}
               gameMode={activeSession.gameMode}
             />
-          )
-        )}
-      </div>
+          </div>
+        )
+      )}
     </div>
   );
 }
