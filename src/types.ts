@@ -53,6 +53,10 @@ export interface BotProfile {
   winRate: number;
   kdRate: number;
   badge: string;
+  chatReplies?: string[];  // 플레이어 채팅에 반응
+  tauntLines?: string[];   // 플레이어 처치 시 도발
+  deathLines?: string[];   // 봇 사망 시 반응
+  banterLines?: string[];  // 게임 중 주기적 잡담
 }
 
 export interface CrosshairSettings {

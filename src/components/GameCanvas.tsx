@@ -458,20 +458,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     addChatMessage('You', customChatMessage);
     gameAudio.playClickSound();
 
-    // Small bot response chance
+    // Bot response using per-bot chatReplies or difficulty fallback
     setTimeout(() => {
       if (gameState.isGameOver) return;
-      const botResponses = [
-        "Quiet down kid, focus on the trigger.",
-        "Your fingers move too slow on that keyboard.",
-        "Nice chatting. Prepare to respawn.",
-        "Stop typing and try to land a single hit.",
-        "Is that your excuse for that last KD ratio?",
-      ];
-      const botLine = botResponses[Math.floor(Math.random() * botResponses.length)];
+      const replies = bot.chatReplies?.length
+        ? bot.chatReplies
+        : {
+            easy: ['저도 채팅 치면서 싸우는 거 좋아요~', '으~ 집중해야 하는데', '채팅이 더 재미있는데요 ㅎㅎ', '잠깐만요 읽고 있어요'],
+            medium: ['채팅하면서 에임이 흔들리지 않아요?', '말은 나중에, 지금은 싸워요', '나이스 채팅~ 근데 죽을 준비해요', '말이 많네요~ 실력도 그만큼이길'],
+            hard: ['채팅 칠 시간 있으면 포지션 봐', '말 말고 총이나 더 잘 쏴', '수다는 끝나고', '입 닫고 집중해'],
+            pro: ['타이핑 속도는 프로급이네 ㅋ', '채팅할 여유 있는 게 신기하네', '그 시간에 무빙이나 연습해', '말 많은 사람치고 잘하는 사람 못 봤어'],
+          }[bot.difficulty];
+      const botLine = replies[Math.floor(Math.random() * replies.length)];
       addChatMessage(bot.name, botLine);
       triggerBotChatBubble(botLine);
-    }, 1500);
+    }, 1200);
 
     setCustomChatMessage('');
   };
@@ -572,9 +573,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     // Warmup audio cue
     gameAudio.playMatchStartSound();
 
-    addChatMessage('SYSTEM', 'MATCH LOADED: First player to 5 Round Wins claims the Cup!');
-    addChatMessage(bot.name, `[TAUNT] ${TAUNT_MESSAGES[bot.difficulty][0]}`);
-    triggerBotChatBubble(TAUNT_MESSAGES[bot.difficulty][0]);
+    addChatMessage('SYSTEM', '매치 시작! 먼저 5라운드를 따내는 플레이어가 승리합니다!');
+    const openingLine = bot.tauntLines?.[0] ?? TAUNT_MESSAGES[bot.difficulty][0];
+    addChatMessage(bot.name, `[도발] ${openingLine}`);
+    triggerBotChatBubble(openingLine);
+
+    // Periodic banter: bot sends random chat every 22-35 seconds
+    const banterInterval = setInterval(() => {
+      if (gameState.isGameOver) return;
+      const lines = bot.banterLines?.length ? bot.banterLines : TAUNT_MESSAGES[bot.difficulty];
+      const line = lines[Math.floor(Math.random() * lines.length)];
+      addChatMessage(bot.name, line);
+      triggerBotChatBubble(line);
+    }, 22000 + Math.random() * 13000);
 
     // Handle Window listeners
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -607,6 +618,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+      clearInterval(banterInterval);
     };
   }, []);
 
@@ -1722,8 +1734,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     gameAudio.playKillSound();
 
     if (victim === 'player') {
-      const killerQuote = TAUNT_MESSAGES[bot.difficulty][Math.floor(Math.random() * TAUNT_MESSAGES[bot.difficulty].length)];
-      addChatMessage(bot.name, `☠️ [TAUNT] ${killerQuote}`);
+      const tauntPool = bot.tauntLines?.length ? bot.tauntLines : TAUNT_MESSAGES[bot.difficulty];
+      const killerQuote = tauntPool[Math.floor(Math.random() * tauntPool.length)];
+      addChatMessage(bot.name, `☠️ [도발] ${killerQuote}`);
       triggerBotChatBubble(killerQuote);
 
       // Bloat death splatter
@@ -1733,8 +1746,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       triggerRoundOver('bot');
     } else {
-      const deathQuote = DEATH_MESSAGES[bot.difficulty][Math.floor(Math.random() * DEATH_MESSAGES[bot.difficulty].length)];
-      addChatMessage(bot.name, `💀 [DEATH] ${deathQuote}`);
+      const deathPool = bot.deathLines?.length ? bot.deathLines : DEATH_MESSAGES[bot.difficulty];
+      const deathQuote = deathPool[Math.floor(Math.random() * deathPool.length)];
+      addChatMessage(bot.name, `💀 [사망] ${deathQuote}`);
       triggerBotChatBubble(deathQuote);
 
       // Bot death chunks
