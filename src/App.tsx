@@ -18,7 +18,7 @@ const DEFAULT_LOADOUT: Record<string, WeaponType> = { slot1: 'rifle', slot2: 'pi
 
 // localStorage 헬퍼
 const ls = {
-  get: <T>(key: string, fallback: T): T => {
+  get: <T,>(key: string, fallback: T): T => {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
   },
   set: (key: string, value: unknown) => {
