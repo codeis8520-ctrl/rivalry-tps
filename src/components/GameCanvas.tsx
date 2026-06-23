@@ -2293,7 +2293,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       skin: WeaponSkin,
       nameLabel: string,
       isPlayerAvatar: boolean,
-      isSlasher: boolean,
+      weaponType: string,
       entityDashing?: boolean,
       bodyColor?: string,
       nameLabelColor?: string,
@@ -2342,24 +2342,112 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       ctx.shadowBlur = skin.glow ? 8 : 0;
       ctx.shadowColor = skin.primaryColor;
 
-      // Draw custom weapon size based on classes
-      if (isSlasher) {
-        // DRAW SWORD/KATANA!
+      // Draw weapon shape per type
+      if (weaponType === 'katana') {
         ctx.strokeStyle = skin.primaryColor;
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(-5, 0);
         ctx.lineTo(28, -2);
         ctx.stroke();
-
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(-8, -1, 5, 3); // hilt
-      } else {
-        // Draw normal gun box
-        ctx.fillRect(-5, -2, 22, 5); // receiver
+      } else if (weaponType === 'pistol') {
+        // Desert Eagle — compact slide, short barrel
+        ctx.fillRect(-3, -2, 13, 4);
         ctx.fillStyle = skin.secondaryColor;
-        ctx.fillRect(8, -1, 8, 3); // barrel
-        ctx.fillRect(-3, 2, 3, 6); // clip/grip
+        ctx.fillRect(6, -1, 7, 2);      // barrel
+        ctx.fillStyle = skin.primaryColor;
+        ctx.fillRect(-2, 2, 3, 5);      // grip
+      } else if (weaponType === 'revolver') {
+        // .357 — frame + cylinder hint + barrel
+        ctx.fillRect(-3, -2, 15, 4);
+        ctx.fillStyle = skin.secondaryColor;
+        ctx.fillRect(8, -1, 7, 2);      // barrel
+        ctx.fillRect(-2, 2, 3, 5);      // grip
+        ctx.beginPath();                 // cylinder
+        ctx.arc(2, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (weaponType === 'smg') {
+        // UMP-45 — compact, vertical magazine
+        ctx.fillRect(-3, -2, 17, 4);
+        ctx.fillStyle = skin.secondaryColor;
+        ctx.fillRect(10, -1, 6, 2);     // barrel
+        ctx.fillRect(1, 2, 4, 7);       // magazine
+        ctx.fillStyle = skin.primaryColor;
+        ctx.fillRect(-3, -1, 4, 3);     // stock stub
+      } else if (weaponType === 'rifle') {
+        // M4A4 — medium, stock behind
+        ctx.fillRect(-7, -2, 27, 4);
+        ctx.fillStyle = skin.secondaryColor;
+        ctx.fillRect(13, -1, 9, 2);     // barrel
+        ctx.fillRect(-7, -1, 6, 3);     // stock
+        ctx.fillRect(2, 2, 4, 5);       // grip/mag
+      } else if (weaponType === 'lmg') {
+        // M249 — long body, box mag, bipod
+        ctx.fillRect(-8, -2, 30, 4);
+        ctx.fillStyle = skin.secondaryColor;
+        ctx.fillRect(16, -1, 12, 2);    // barrel
+        ctx.fillRect(-8, -1, 6, 3);     // stock
+        ctx.fillRect(3, 2, 6, 3);       // box magazine
+        ctx.fillRect(8, 2, 2, 5);       // bipod leg A
+        ctx.fillRect(12, 2, 2, 5);      // bipod leg B
+      } else if (weaponType === 'shotgun') {
+        // Pump Action — wide bore, pump slide
+        ctx.fillRect(-5, -3, 24, 5);
+        ctx.fillStyle = skin.secondaryColor;
+        ctx.fillRect(15, -2, 9, 3);     // barrel (wide)
+        ctx.fillRect(-3, 2, 4, 3);      // stock
+        ctx.fillRect(4, -1, 7, 2);      // pump slide
+      } else if (weaponType === 'sniper') {
+        // AWM — very long barrel, scope
+        ctx.fillRect(-7, -2, 35, 4);
+        ctx.fillStyle = skin.secondaryColor;
+        ctx.fillRect(21, -1, 13, 2);    // barrel
+        ctx.fillRect(-7, -1, 6, 3);     // stock
+        ctx.fillRect(5, -5, 10, 3);     // scope body
+        ctx.fillRect(9, -7, 3, 2);      // scope eyepiece
+      } else if (weaponType === 'minigun') {
+        // M134 — wide housing + 3 parallel barrels
+        ctx.fillRect(-5, -5, 7, 10);    // housing block
+        ctx.fillStyle = skin.secondaryColor;
+        ctx.fillRect(1, -4, 21, 2);     // barrel top
+        ctx.fillRect(1, -1, 21, 2);     // barrel mid
+        ctx.fillRect(1, 2, 21, 2);      // barrel bot
+        ctx.fillStyle = skin.primaryColor;
+        ctx.fillRect(19, -5, 3, 10);    // muzzle band
+      } else if (weaponType === 'crossbow') {
+        // Crossbow — stock rail + perpendicular limbs + string
+        ctx.fillRect(-4, -1, 22, 2);    // stock/rail
+        ctx.fillStyle = skin.secondaryColor;
+        ctx.fillRect(14, -1, 8, 2);     // bolt track
+        ctx.fillRect(-1, -7, 3, 14);    // rear limb
+        ctx.fillRect(9, -6, 2, 12);     // front limb
+        ctx.strokeStyle = skin.secondaryColor;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(-1, -7);
+        ctx.lineTo(10, 0);
+        ctx.lineTo(-1, 7);
+        ctx.stroke();
+      } else if (weaponType === 'rpg') {
+        // Grenade tube + warhead arrow
+        ctx.fillRect(-5, -3, 22, 5);    // tube
+        ctx.fillStyle = skin.secondaryColor;
+        ctx.beginPath();                 // warhead
+        ctx.moveTo(17, -3);
+        ctx.lineTo(26, 0);
+        ctx.lineTo(17, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = skin.primaryColor;
+        ctx.fillRect(-4, 2, 4, 4);      // handle
+      } else {
+        // fallback
+        ctx.fillRect(-5, -2, 22, 5);
+        ctx.fillStyle = skin.secondaryColor;
+        ctx.fillRect(8, -1, 8, 3);
+        ctx.fillRect(-3, 2, 3, 6);
       }
       ctx.restore();
 
@@ -2439,13 +2527,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         playerSkin,
         'You',
         true,
-        playerWeapon.type === 'katana'
+        playerWeapon.type
       );
     }
 
     // Draw Bot enemy (enemy1) — hide immediately on death using ref (not stale React state)
     if (bot1AliveRef.current) {
-      drawAvatar(bt.x, bt.y, bt.facingAngle, gameState.botHealth, gameState.botMaxHealth, gameState.botShield, gameState.botMaxShield, botSkin, bot.name, false, WEAPON_TYPES[bot.favoriteWeapon].type === 'katana', bt.isDashing, '#ef4444', '#f97316');
+      drawAvatar(bt.x, bt.y, bt.facingAngle, gameState.botHealth, gameState.botMaxHealth, gameState.botShield, gameState.botMaxShield, botSkin, bot.name, false, WEAPON_TYPES[bot.favoriteWeapon].type, bt.isDashing, '#ef4444', '#f97316');
     }
 
     // 2v2: Draw Ally (green) and Enemy2 (red)
@@ -2456,12 +2544,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       if (allyAliveRef.current) {
         const allyWeapon = allyBot ? WEAPON_TYPES[allyBot.favoriteWeapon] : WEAPON_TYPES.rifle;
         const allySkin2 = allyBotSkin ?? WEAPON_SKINS[0];
-        drawAvatar(al.x, al.y, al.facingAngle, ts.allyHealth, 100, ts.allyShield, 100, allySkin2, `[아군] ${allyBot?.name ?? 'Ally'}`, false, allyWeapon.type === 'katana', al.isDashing, '#22c55e', '#22c55e');
+        drawAvatar(al.x, al.y, al.facingAngle, ts.allyHealth, 100, ts.allyShield, 100, allySkin2, `[아군] ${allyBot?.name ?? 'Ally'}`, false, allyWeapon.type, al.isDashing, '#22c55e', '#22c55e');
       }
       if (bot2AliveRef.current) {
         const bot2Weapon = bot2 ? WEAPON_TYPES[bot2.favoriteWeapon] : WEAPON_TYPES.rifle;
         const bot2SkinDraw = bot2Skin ?? WEAPON_SKINS[1] ?? WEAPON_SKINS[0];
-        drawAvatar(b2.x, b2.y, b2.facingAngle, ts.bot2Health, 100, ts.bot2Shield, 100, bot2SkinDraw, bot2?.name ?? 'Enemy2', false, bot2Weapon.type === 'katana', b2.isDashing, '#ef4444', '#f97316');
+        drawAvatar(b2.x, b2.y, b2.facingAngle, ts.bot2Health, 100, ts.bot2Shield, 100, bot2SkinDraw, bot2?.name ?? 'Enemy2', false, bot2Weapon.type, b2.isDashing, '#ef4444', '#f97316');
       }
     }
 
