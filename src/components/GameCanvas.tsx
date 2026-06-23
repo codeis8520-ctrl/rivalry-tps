@@ -843,11 +843,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       allyAliveRef.current = true;
       bot2AliveRef.current = true;
-      bot1AliveRef.current = true;
       isSpectatingRef.current = false;
       setIsSpectating(false);
       setTeamState({ allyHealth: 100, allyShield: 100, bot2Health: 100, bot2Shield: 100 });
     }
+
+    // Always reset bot1 alive (applies to both 1v1 and 2v2)
+    bot1AliveRef.current = true;
 
     // Trigger next warmup phase
     setPhaseTimeLeft(3);
@@ -1295,6 +1297,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Bot core AI logic (runs at 60Hz)
   const processBotControls = () => {
+    // 2v2: stop running AI when bot1 is already dead
+    if (!bot1AliveRef.current) return;
+
     const bt = botRef.current;
     const playr = playerRef.current;
     const bWeapon = WEAPON_TYPES[bot.favoriteWeapon];
@@ -1815,7 +1820,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         if (b.isPlayer) {
           // Player-team bullets (player + ally) hit enemy1
           const dist = Math.hypot(bt.x - b.x, bt.y - b.y);
-          if (dist < bt.radius + 3 && gameStateRef.current.botHealth > 0) {
+          if (dist < bt.radius + 3 && bot1AliveRef.current) {
             active = false;
             const isHead = b.y < bt.y - bt.radius * 0.3;
             const hsMult = b.headshotMult ?? playerWeapon.headshotMult;
