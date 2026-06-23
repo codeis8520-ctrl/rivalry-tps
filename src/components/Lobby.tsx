@@ -1219,8 +1219,8 @@ export const Lobby: React.FC<LobbyProps> = ({
                 {/* 무기 선택 그리드 (슬롯 선택 시 표시) */}
                 {selectedLoadoutSlot && (
                   <div className="bg-slate-900/60 border border-indigo-500/20 rounded-2xl p-4 space-y-3">
-                    <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">무기 선택</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                    <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">무기 선택 — 좌우로 스크롤</p>
+                    <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                       {Object.entries(WEAPON_TYPES).map(([key, w]) => {
                         const isEquipped = loadoutSlots[selectedLoadoutSlot as keyof typeof loadoutSlots] === key;
                         return (
@@ -1231,12 +1231,13 @@ export const Lobby: React.FC<LobbyProps> = ({
                               onUpdateLoadoutSlots({ ...loadoutSlots, [selectedLoadoutSlot]: key as WeaponType });
                               setSelectedLoadoutSlot(null);
                             }}
-                            className={`rounded-xl p-3 text-left transition-all cursor-pointer border ${
+                            className={`flex-shrink-0 w-36 rounded-xl p-3 text-left transition-all cursor-pointer border ${
                               isEquipped
                                 ? 'bg-indigo-600/20 border-indigo-500'
                                 : 'bg-slate-950 border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900'
                             }`}
                           >
+                            <div className="w-2 h-2 rounded-full mb-1.5" style={{ background: w.color }} />
                             <p className="text-xs font-black text-white leading-tight">{w.name}</p>
                             <p className="text-[9px] text-slate-500 mt-1 font-mono">공격력 {w.damage}</p>
                             <p className="text-[9px] text-slate-500 font-mono">탄창 {w.maxAmmo} · {w.reloadTime}s</p>
