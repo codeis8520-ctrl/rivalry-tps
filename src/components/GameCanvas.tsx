@@ -2596,30 +2596,34 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             <span className="text-[10px] sm:text-xs font-bold text-red-400 uppercase">{is2v2 ? 'ENEMY' : bot.name.slice(0, 8)}</span>
           </div>
 
-          {/* 2v2 mini health strip */}
-          {is2v2 && (
-            <div className="hidden sm:flex items-center gap-2 bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-[9px] font-mono">
-              <span className="text-emerald-400 font-bold">아군</span>
-              <div className="flex flex-col gap-0.5">
-                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div style={{ width: `${teamState.allyHealth}%` }} className={`h-full rounded-full ${allyAliveRef.current ? 'bg-emerald-500' : 'bg-slate-600'}`} />
-                </div>
-                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div style={{ width: `${teamState.allyShield}%` }} className="h-full bg-cyan-500 rounded-full" />
-                </div>
+          {/* 2v2 four-player health strip */}
+          {is2v2 && (() => {
+            const allyDead = teamState.allyHealth <= 0;
+            const bot1Dead = gameState.botHealth <= 0;
+            const bot2Dead = teamState.bot2Health <= 0;
+            const playerDead = gameState.playerHealth <= 0;
+            const Bar = ({ pct, color, dead }: { pct: number; color: string; dead: boolean }) => (
+              <div className="w-14 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div style={{ width: `${dead ? 0 : pct}%`, background: dead ? '#334155' : color, transition: 'width 0.15s' }} className="h-full rounded-full" />
               </div>
-              <span className="text-slate-500">|</span>
-              <span className="text-red-400 font-bold">적2</span>
-              <div className="flex flex-col gap-0.5">
-                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div style={{ width: `${teamState.bot2Health}%` }} className={`h-full rounded-full ${bot2AliveRef.current ? 'bg-red-500' : 'bg-slate-600'}`} />
-                </div>
-                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div style={{ width: `${teamState.bot2Shield}%` }} className="h-full bg-cyan-500 rounded-full" />
-                </div>
+            );
+            const Entity = ({ label, labelColor, hp, shield, dead }: { label: string; labelColor: string; hp: number; shield: number; dead: boolean }) => (
+              <div className="flex flex-col items-center gap-0.5">
+                <span style={{ color: dead ? '#475569' : labelColor }} className="text-[8px] font-black uppercase font-mono leading-none">{dead ? '💀' : label}</span>
+                <Bar pct={hp} color={labelColor} dead={dead} />
+                <Bar pct={shield} color="#38bdf8" dead={dead} />
               </div>
-            </div>
-          )}
+            );
+            return (
+              <div className="hidden sm:flex items-center gap-2 bg-slate-950/90 border border-slate-700/50 px-3 py-1.5 rounded-xl">
+                <Entity label="나" labelColor="#60a5fa" hp={gameState.playerHealth} shield={gameState.playerShield} dead={playerDead} />
+                <Entity label={allyBot?.name?.slice(0,4) ?? '아군'} labelColor="#4ade80" hp={teamState.allyHealth} shield={teamState.allyShield} dead={allyDead} />
+                <span className="text-slate-700 text-xs font-black">vs</span>
+                <Entity label={bot.name.slice(0,4)} labelColor="#f87171" hp={gameState.botHealth} shield={gameState.botShield} dead={bot1Dead} />
+                <Entity label={bot2?.name?.slice(0,4) ?? '적2'} labelColor="#fb923c" hp={teamState.bot2Health} shield={teamState.bot2Shield} dead={bot2Dead} />
+              </div>
+            );
+          })()}
 
           {/* Round Countdown */}
           <div className="flex flex-col items-center">
