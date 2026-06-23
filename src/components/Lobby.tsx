@@ -31,7 +31,8 @@ import {
   ArrowDownRight,
   LogOut,
   Gift,
-  Trash2
+  Trash2,
+  Swords
 } from 'lucide-react';
 
 export interface RankInfo {
@@ -87,7 +88,7 @@ interface LobbyProps {
   onUpdateInventory: (skins: string[]) => void;
   onUpdateEquippedSkins: (equipped: Record<string, string>) => void;
   onUpdateCrosshair: (settings: CrosshairSettings) => void;
-  onStartGame: (bot: BotProfile, botSkin: WeaponSkin, loadoutSlots: Record<string, WeaponType>, equippedSkins: Record<string, string>, gameMode: 'casual' | 'ranked') => void;
+  onStartGame: (bot: BotProfile, botSkin: WeaponSkin, loadoutSlots: Record<string, WeaponType>, equippedSkins: Record<string, string>, gameMode: 'casual' | 'ranked' | '2v2', allyBot?: BotProfile, allyBotSkin?: WeaponSkin, bot2?: BotProfile, bot2Skin?: WeaponSkin) => void;
   loadoutSlots: Record<string, WeaponType>;
   onUpdateLoadoutSlots: (slots: Record<string, WeaponType>) => void;
   lastRankedReport?: { win: boolean; rpChange: number; oldRP: number; newRP: number; botName: string; } | null;
@@ -405,6 +406,26 @@ export const Lobby: React.FC<LobbyProps> = ({
   const handleCancelQueue = () => {
     gameAudio.playClickSound();
     setMatchmakingState('idle');
+  };
+
+  const handleStart2v2 = () => {
+    gameAudio.playClickSound();
+    // Pick enemy1 randomly, enemy2 from different difficulty tier
+    const enemy1 = BOTS[Math.floor(Math.random() * BOTS.length)];
+    const enemy2Pool = BOTS.filter(b => b.name !== enemy1.name);
+    const enemy2 = enemy2Pool[Math.floor(Math.random() * enemy2Pool.length)];
+    // Pick an easy/medium ally
+    const allyPool = BOTS.filter(b => b.difficulty === 'easy' || b.difficulty === 'medium');
+    const ally = allyPool[Math.floor(Math.random() * allyPool.length)];
+    const e1Skin = WEAPON_SKINS.find(s => s.id === enemy1.skinId) || WEAPON_SKINS[0];
+    const e2Skin = WEAPON_SKINS.find(s => s.id === enemy2.skinId) || WEAPON_SKINS[0];
+    const allySkin = WEAPON_SKINS.find(s => s.id === ally.skinId) || WEAPON_SKINS[0];
+    setMatchedBot(enemy1);
+    setMatchmakingState('matched');
+    gameAudio.playCrateUnlockSound('epic');
+    setTimeout(() => {
+      onStartGame(enemy1, e1Skin, loadoutSlots, equippedSkins, '2v2', ally, allySkin, enemy2, e2Skin);
+    }, 2000);
   };
 
   // 2. Armory Skin Management
@@ -729,7 +750,46 @@ export const Lobby: React.FC<LobbyProps> = ({
                       </>
                     )}
                   </div>
+
+                  {/* Mode Card 3: 2v2 Team Battle */}
+                  <div className="bg-gradient-to-t from-slate-900 to-emerald-950/20 border border-emerald-500/25 p-6 rounded-2xl flex flex-col justify-between space-y-4 hover:border-emerald-500/45 transition-all hover:translate-y-[-2px] relative overflow-hidden shadow-lg shadow-emerald-950/10">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-black px-2.5 py-0.5 rounded-md text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 font-mono flex items-center gap-1">
+                          <Swords className="w-3 h-3 text-emerald-400" /> 팀전 2v2
+                        </span>
+                        <span className="text-[9px] text-emerald-500 font-black uppercase font-mono">팀 배틀</span>
+                      </div>
+                      <h3 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-1.5">
+                        2v2 팀 대전 <span className="text-[9px] bg-emerald-500 text-slate-950 px-1.5 py-0.5 rounded uppercase font-black">NEW</span>
+                      </h3>
+                      <p className="text-slate-400 text-xs leading-relaxed">
+                        아군 봇과 함께 2명의 적 봇을 상대하세요! 아군이 자동으로 전투를 보조하며 팀 킬 5점을 먼저 달성하면 승리합니다.
+                      </p>
+                      <div className="pt-2 text-[10px] text-slate-500 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>승리 보상: <span className="text-amber-500 font-bold">150 골드</span> & <span className="text-sky-400 font-bold">18 젬</span></span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>아군 AI 자동 전투 지원 | 4인 동시 전장</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleStart2v2}
+                      disabled={matchmakingState !== 'idle'}
+                      className="w-full mt-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-sans font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 font-mono disabled:opacity-50"
+                    >
+                      <Swords className="w-3.5 h-3.5 text-white" />
+                      <span>2v2 팀 배틀 시작</span>
+                    </button>
+                  </div>
+
                 </div>
+              </div>
 
                 {/* Center "VS" bubble */}
                 <div className="md:col-span-2 flex justify-center text-center">

@@ -96,3 +96,5 @@ export interface GameState {
   winner: 'player' | 'bot' | null;
   roundPhase: 'warmup' | 'active' | 'round_end';
 }
+
+export type GameMode = 'casual' | 'ranked' | '2v2';

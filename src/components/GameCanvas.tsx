@@ -13,7 +13,12 @@ interface GameCanvasProps {
   onQuit: (playerScore: number, botScore: number, finalWinner: 'player' | 'bot' | null) => void;
   loadoutSlots: Record<string, WeaponType>;
   equippedSkins: Record<string, string>;
-  gameMode?: 'casual' | 'ranked';
+  gameMode?: 'casual' | 'ranked' | '2v2';
+  // 2v2 props
+  allyBot?: BotProfile;
+  allyBotSkin?: WeaponSkin;
+  bot2?: BotProfile;
+  bot2Skin?: WeaponSkin;
 }
 
 // Particle class for blood, sparks, shield breaks
@@ -129,7 +134,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   loadoutSlots,
   equippedSkins,
   gameMode = 'casual',
+  allyBot,
+  allyBotSkin,
+  bot2,
+  bot2Skin,
 }) => {
+  const is2v2 = gameMode === '2v2';
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -384,6 +394,44 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     chatBubbleText: '',
     chatBubbleExpiry: 0,
   });
+
+  // 2v2: Ally and second enemy refs
+  const allyRef = useRef({
+    x: 350, y: 700,
+    vx: 0, vy: 0,
+    radius: 17,
+    facingAngle: 0,
+    isDashing: false, dashCooldown: 0, dashTimer: 0, dashVx: 0, dashVy: 0,
+    lastShotTime: 0,
+    speed: 2.8,
+    currentAmmo: allyBot ? WEAPON_TYPES[allyBot.favoriteWeapon]?.maxAmmo ?? 30 : 30,
+    isReloading: false, reloadProgress: 0,
+    stateTimer: 0, behaviorState: 'hunt' as string,
+  });
+  const bot2Ref = useRef({
+    x: 1050, y: 300,
+    vx: 0, vy: 0,
+    radius: 17,
+    facingAngle: Math.PI,
+    isDashing: false, dashCooldown: 0, dashTimer: 0, dashVx: 0, dashVy: 0,
+    lastShotTime: 0,
+    speed: bot2 ? (bot2.difficulty === 'pro' ? 3.7 : bot2.difficulty === 'hard' ? 3.3 : bot2.difficulty === 'medium' ? 2.8 : 2.2) : 2.5,
+    currentAmmo: bot2 ? WEAPON_TYPES[bot2.favoriteWeapon]?.maxAmmo ?? 30 : 30,
+    isReloading: false, reloadProgress: 0,
+    stateTimer: 0, behaviorState: 'hunt' as string,
+    chatBubbleText: '', chatBubbleExpiry: 0,
+  });
+
+  // 2v2 health state (separate from main gameState to avoid breaking 1v1)
+  const [teamState, setTeamState] = useState({
+    allyHealth: 100, allyShield: 100,
+    bot2Health: 100, bot2Shield: 100,
+  });
+  const allyAliveRef = useRef(true);
+  const bot2AliveRef = useRef(true);
+  const bot1AliveRef = useRef(true);
+  const teamStateRef = useRef(teamState);
+  teamStateRef.current = teamState;
 
   // Keyboard controls
   const keysRef = useRef<Record<string, boolean>>({});
@@ -777,6 +825,26 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     rocketsRef.current = [];
     particlesRef.current = [];
 
+    // 2v2: reset ally and bot2
+    if (is2v2) {
+      allyRef.current.x = 350; allyRef.current.y = 700;
+      allyRef.current.vx = 0; allyRef.current.vy = 0;
+      allyRef.current.facingAngle = 0;
+      allyRef.current.currentAmmo = allyBot ? WEAPON_TYPES[allyBot.favoriteWeapon]?.maxAmmo ?? 30 : 30;
+      allyRef.current.isReloading = false; allyRef.current.reloadProgress = 0;
+
+      bot2Ref.current.x = 1050; bot2Ref.current.y = 300;
+      bot2Ref.current.vx = 0; bot2Ref.current.vy = 0;
+      bot2Ref.current.facingAngle = Math.PI;
+      bot2Ref.current.currentAmmo = bot2 ? WEAPON_TYPES[bot2.favoriteWeapon]?.maxAmmo ?? 30 : 30;
+      bot2Ref.current.isReloading = false; bot2Ref.current.reloadProgress = 0;
+
+      allyAliveRef.current = true;
+      bot2AliveRef.current = true;
+      bot1AliveRef.current = true;
+      setTeamState({ allyHealth: 100, allyShield: 100, bot2Health: 100, bot2Shield: 100 });
+    }
+
     // Trigger next warmup phase
     setPhaseTimeLeft(3);
     setGameState((prev) => ({
@@ -1001,6 +1069,34 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // 3. Smart Bot Behavior Engine (Ticking AI)
     processBotControls();
+
+    // 3b. 2v2 AI for ally and enemy2
+    if (is2v2) {
+      const allyWeapon = allyBot ? WEAPON_TYPES[allyBot.favoriteWeapon] : WEAPON_TYPES.rifle;
+      const allyDefaultSkin = allyBotSkin ?? WEAPON_SKINS[0];
+      processTeamBotAI(
+        allyRef,
+        [
+          { ref: botRef, alive: gameStateRef.current.botHealth > 0 },
+          { ref: bot2Ref, alive: bot2AliveRef.current },
+        ],
+        allyWeapon, true, allyDefaultSkin,
+        allyBot?.difficulty ?? 'medium',
+      );
+      if (bot2AliveRef.current) {
+        const bot2Weapon = bot2 ? WEAPON_TYPES[bot2.favoriteWeapon] : WEAPON_TYPES.rifle;
+        const bot2DefaultSkin = bot2Skin ?? WEAPON_SKINS[1] ?? WEAPON_SKINS[0];
+        processTeamBotAI(
+          bot2Ref,
+          [
+            { ref: playerRef, alive: gameStateRef.current.playerHealth > 0 },
+            { ref: allyRef, alive: allyAliveRef.current },
+          ],
+          bot2Weapon, false, bot2DefaultSkin,
+          bot2?.difficulty ?? 'medium',
+        );
+      }
+    }
 
     // 4. Update Bullets and Projectiles
     updateProjectiles();
@@ -1485,6 +1581,167 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   };
 
+  // ─── 2v2 AI helpers ───────────────────────────────────────────────────────
+  const fireTeamBotWeapon = (weapon: WeaponStats, attacker: any, target: any, isPlayerTeam: boolean, skin: WeaponSkin) => {
+    attacker.lastShotTime = Date.now();
+    attacker.currentAmmo--;
+    gameAudio.playShootSound(weapon.type);
+
+    const barrelX = attacker.x + Math.cos(attacker.facingAngle) * 22;
+    const barrelY = attacker.y + Math.sin(attacker.facingAngle) * 22;
+    const aimOffset = (Math.random() - 0.5) * 0.22;
+    const baseAngle = attacker.facingAngle + aimOffset;
+
+    if (weapon.type === 'rpg') {
+      rocketsRef.current.push({ x: barrelX, y: barrelY, vx: Math.cos(baseAngle) * weapon.bulletSpeed, vy: Math.sin(baseAngle) * weapon.bulletSpeed, isPlayer: isPlayerTeam, color: skin.primaryColor, speed: weapon.bulletSpeed });
+      return;
+    }
+    if (weapon.type === 'katana') {
+      const dist = Math.hypot(target.x - attacker.x, target.y - attacker.y);
+      if (dist < 110) {
+        if (isPlayerTeam) {
+          const alive2 = bot2AliveRef.current;
+          if (alive2 && Math.hypot(bot2Ref.current.x - attacker.x, bot2Ref.current.y - attacker.y) < 110) dealDamageTo2v2Entity('bot2', weapon.damage, false);
+          dealDamageTo2v2Entity('bot', weapon.damage, false);
+        } else {
+          dealDamageToEntity('player', weapon.damage, false);
+          if (allyAliveRef.current && Math.hypot(allyRef.current.x - attacker.x, allyRef.current.y - attacker.y) < 110) dealDamageTo2v2Entity('ally', weapon.damage, false);
+        }
+      }
+      return;
+    }
+    for (let i = 0; i < weapon.bulletCount; i++) {
+      const scatter = (Math.random() - 0.5) * weapon.spread;
+      bulletsRef.current.push({
+        x: barrelX, y: barrelY,
+        vx: Math.cos(baseAngle + scatter) * weapon.bulletSpeed,
+        vy: Math.sin(baseAngle + scatter) * weapon.bulletSpeed,
+        damage: weapon.damage,
+        isPlayer: isPlayerTeam,
+        color: skin.primaryColor,
+        speed: weapon.bulletSpeed,
+        rangeLeft: weapon.range,
+        trail: [],
+        type: weapon.type,
+      });
+    }
+  };
+
+  const processTeamBotAI = (
+    attackerRef: React.MutableRefObject<any>,
+    targets: Array<{ ref: React.MutableRefObject<any>; alive: boolean }>,
+    weapon: WeaponStats,
+    isPlayerTeam: boolean,
+    skin: WeaponSkin,
+    difficulty: string,
+  ) => {
+    const attacker = attackerRef.current;
+
+    // Reload
+    if (attacker.isReloading) {
+      const step = 100 / (weapon.reloadTime * 60);
+      attacker.reloadProgress += step;
+      if (attacker.reloadProgress >= 100) {
+        attacker.currentAmmo = weapon.maxAmmo;
+        attacker.isReloading = false;
+        attacker.reloadProgress = 0;
+      }
+    }
+
+    // Find nearest alive target
+    const alive = targets.filter(t => t.alive);
+    if (alive.length === 0) {
+      attacker.vx *= 0.85; attacker.vy *= 0.85;
+      attacker.x += attacker.vx; attacker.y += attacker.vy;
+      return;
+    }
+    const target = alive.reduce((best, t) => {
+      return Math.hypot(t.ref.current.x - attacker.x, t.ref.current.y - attacker.y) < Math.hypot(best.ref.current.x - attacker.x, best.ref.current.y - attacker.y) ? t : best;
+    }, alive[0]);
+    const tgt = target.ref.current;
+    const distToTarget = Math.hypot(tgt.x - attacker.x, tgt.y - attacker.y);
+
+    // Turn speed by difficulty
+    const targetAngle = Math.atan2(tgt.y - attacker.y, tgt.x - attacker.x);
+    let angleDiff = targetAngle - attacker.facingAngle;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+    const maxTurn = difficulty === 'pro' ? 0.16 : difficulty === 'hard' ? 0.12 : difficulty === 'medium' ? 0.09 : 0.06;
+    if (Math.abs(angleDiff) > maxTurn) attacker.facingAngle += Math.sign(angleDiff) * maxTurn;
+    else attacker.facingAngle = targetAngle;
+
+    // Movement
+    if (distToTarget > 320) {
+      attacker.vx = Math.cos(attacker.facingAngle) * attacker.speed;
+      attacker.vy = Math.sin(attacker.facingAngle) * attacker.speed;
+    } else if (distToTarget > 130) {
+      const strafeAngle = attacker.facingAngle + (Math.sin(Date.now() / 800) > 0 ? Math.PI / 2 : -Math.PI / 2);
+      attacker.vx = Math.cos(strafeAngle) * attacker.speed * 0.8;
+      attacker.vy = Math.sin(strafeAngle) * attacker.speed * 0.8;
+    } else {
+      attacker.vx *= 0.8; attacker.vy *= 0.8;
+    }
+    attacker.x += attacker.vx;
+    attacker.y += attacker.vy;
+    attacker.x = Math.max(attacker.radius, Math.min(arenaWidth - attacker.radius, attacker.x));
+    attacker.y = Math.max(attacker.radius, Math.min(arenaHeight - attacker.radius, attacker.y));
+    handlePillarCollisions(attacker);
+
+    // Fire
+    if (!attacker.isReloading) {
+      if (attacker.currentAmmo <= 0) { attacker.isReloading = true; attacker.reloadProgress = 0; return; }
+      const now = Date.now();
+      const fireRate = weapon.fireRate * (difficulty === 'easy' ? 1.4 : difficulty === 'medium' ? 1.2 : 1.05);
+      if (now - attacker.lastShotTime > fireRate && distToTarget < weapon.range * 1.1) {
+        if (hasLineOfSight(attacker.x, attacker.y, tgt.x, tgt.y)) {
+          const panicChance = difficulty === 'easy' ? 0.2 : difficulty === 'medium' ? 0.1 : 0.04;
+          if (Math.random() > panicChance) fireTeamBotWeapon(weapon, attacker, tgt, isPlayerTeam, skin);
+        }
+      }
+    }
+  };
+
+  const dealDamageTo2v2Entity = (target: 'ally' | 'bot' | 'bot2', rawDmg: number, isHeadshot: boolean) => {
+    const ex = target === 'ally' ? allyRef.current.x : target === 'bot2' ? bot2Ref.current.x : botRef.current.x;
+    const ey = target === 'ally' ? allyRef.current.y : target === 'bot2' ? bot2Ref.current.y : botRef.current.y;
+
+    if (target === 'ally' || target === 'bot2') {
+      setTeamState(prev => {
+        let hp = target === 'ally' ? prev.allyHealth : prev.bot2Health;
+        let sp = target === 'ally' ? prev.allyShield : prev.bot2Shield;
+        let isArmor = false;
+        if (sp > 0) { isArmor = true; const abs = Math.min(sp, rawDmg); sp -= abs; hp -= (rawDmg - abs); }
+        else hp -= rawDmg;
+        hp = Math.max(0, hp);
+
+        const hitColor = isArmor ? '#38bdf8' : (target === 'ally' ? '#4ade80' : '#f87171');
+        for (let i = 0; i < 5; i++) particlesRef.current.push(new Particle(ex, ey, hitColor, 1.1));
+        damageIndicatorsRef.current.push({ x: ex + (Math.random() - 0.5) * 20, y: ey - 20, text: isHeadshot ? `🎯 ${rawDmg}` : `${rawDmg}`, color: isArmor ? '#38bdf8' : '#fff', size: 12, vy: -1.8, life: 40 });
+
+        if (hp <= 0) {
+          if (target === 'ally') {
+            allyAliveRef.current = false;
+            for (let i = 0; i < 20; i++) particlesRef.current.push(new Particle(ex, ey, '#4ade80', 2));
+            addChatMessage('SYSTEM', '💀 아군 봇 전사! 혼자서 싸워라!');
+          } else if (target === 'bot2') {
+            bot2AliveRef.current = false;
+            gameAudio.playKillSound();
+            for (let i = 0; i < 20; i++) particlesRef.current.push(new Particle(ex, ey, '#fbbf24', 2));
+            addChatMessage(bot2?.name ?? 'Enemy2', `💀 [사망] 쓰러졌다!`);
+            // Check if both enemies dead → player wins round
+            if (!bot1AliveRef.current) triggerRoundOver('player');
+          }
+        }
+        return target === 'ally'
+          ? { ...prev, allyHealth: hp, allyShield: sp }
+          : { ...prev, bot2Health: hp, bot2Shield: sp };
+      });
+    } else {
+      // bot (enemy1) death in 2v2: check bot2 also dead
+      dealDamageToEntity('bot', rawDmg, isHeadshot);
+    }
+  };
+
   // Projectile processing
   const updateProjectiles = () => {
     const playr = playerRef.current;
@@ -1530,29 +1787,44 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       // Check entity overlaps
       if (active) {
         if (b.isPlayer) {
-          // Hits Bot check
+          // Player-team bullets hit enemy1
           const dist = Math.hypot(bt.x - b.x, bt.y - b.y);
-          if (dist < bt.radius + 3) {
+          if (dist < bt.radius + 3 && gameStateRef.current.botHealth > 0) {
             active = false;
-
-            // Roblox Headshot critical hit multiplier verification
-            // Since we are top down/tilted, if bullet hits the top 35% quadrant of the entity circle, count as Headshot!
             const isHead = b.y < bt.y - bt.radius * 0.3;
             const finalDmg = isHead ? Math.round(b.damage * playerWeapon.headshotMult) : b.damage;
-
             dealDamageToEntity('bot', finalDmg, isHead);
           }
+          // 2v2: also check enemy2
+          if (active && is2v2 && bot2AliveRef.current) {
+            const b2 = bot2Ref.current;
+            const dist2 = Math.hypot(b2.x - b.x, b2.y - b.y);
+            if (dist2 < b2.radius + 3) {
+              active = false;
+              const isHead = b.y < b2.y - b2.radius * 0.3;
+              const finalDmg = isHead ? Math.round(b.damage * playerWeapon.headshotMult) : b.damage;
+              dealDamageTo2v2Entity('bot2', finalDmg, isHead);
+            }
+          }
         } else {
-          // Hits Player check
+          // Enemy bullets hit player
           const dist = Math.hypot(playr.x - b.x, playr.y - b.y);
           if (dist < playr.radius + 3) {
             active = false;
-
             const isHead = b.y < playr.y - playr.radius * 0.3;
             const bWeapon = WEAPON_TYPES[bot.favoriteWeapon];
             const finalDmg = isHead ? Math.round(b.damage * bWeapon.headshotMult) : b.damage;
-
             dealDamageToEntity('player', finalDmg, isHead);
+          }
+          // 2v2: also check ally
+          if (active && is2v2 && allyAliveRef.current) {
+            const al = allyRef.current;
+            const distA = Math.hypot(al.x - b.x, al.y - b.y);
+            if (distA < al.radius + 3) {
+              active = false;
+              const isHead = b.y < al.y - al.radius * 0.3;
+              dealDamageTo2v2Entity('ally', b.damage, isHead);
+            }
           }
         }
       }
@@ -1595,15 +1867,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       // Check player/bot bounds
       if (active) {
         if (r.isPlayer) {
-          if (Math.hypot(bt.x - r.x, bt.y - r.y) < bt.radius + 10) {
-            explodeRocket(r);
-            active = false;
-          }
+          if (Math.hypot(bt.x - r.x, bt.y - r.y) < bt.radius + 10) { explodeRocket(r); active = false; }
+          if (active && is2v2 && bot2AliveRef.current && Math.hypot(bot2Ref.current.x - r.x, bot2Ref.current.y - r.y) < bot2Ref.current.radius + 10) { explodeRocket(r); active = false; }
         } else {
-          if (Math.hypot(playr.x - r.x, playr.y - r.y) < playr.radius + 10) {
-            explodeRocket(r);
-            active = false;
-          }
+          if (Math.hypot(playr.x - r.x, playr.y - r.y) < playr.radius + 10) { explodeRocket(r); active = false; }
+          if (active && is2v2 && allyAliveRef.current && Math.hypot(allyRef.current.x - r.x, allyRef.current.y - r.y) < allyRef.current.radius + 10) { explodeRocket(r); active = false; }
         }
       }
 
@@ -1647,6 +1915,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const finalDmg = Math.round(100 * factor);
       if (finalDmg > 5) {
         dealDamageToEntity('bot', finalDmg, false);
+      }
+    }
+
+    // 2v2: damage ally and bot2 too
+    if (is2v2) {
+      if (allyAliveRef.current) {
+        const distA = Math.hypot(allyRef.current.x - r.x, allyRef.current.y - r.y);
+        if (distA < blastRadius) { const f = 1 - distA / blastRadius; const d = Math.round(100 * f); if (d > 5) dealDamageTo2v2Entity('ally', d, false); }
+      }
+      if (bot2AliveRef.current) {
+        const distB2 = Math.hypot(bot2Ref.current.x - r.x, bot2Ref.current.y - r.y);
+        if (distB2 < blastRadius) { const f = 1 - distB2 / blastRadius; const d = Math.round(100 * f); if (d > 5) dealDamageTo2v2Entity('bot2', d, false); }
       }
     }
 
@@ -1756,7 +2036,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         particlesRef.current.push(new Particle(botRef.current.x, botRef.current.y, '#fbbf24', 2));
       }
 
-      triggerRoundOver('player');
+      bot1AliveRef.current = false;
+      // 2v2: only trigger round over when BOTH enemies are dead
+      if (is2v2 && bot2AliveRef.current) {
+        addChatMessage('SYSTEM', `💀 ${bot.name} 처치! ${bot2?.name ?? '적2'} 남은 체력 주의!`);
+      } else {
+        triggerRoundOver('player');
+      }
     }
   };
 
@@ -1957,7 +2243,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       skin: WeaponSkin,
       nameLabel: string,
       isPlayerAvatar: boolean,
-      isSlasher: boolean
+      isSlasher: boolean,
+      entityDashing?: boolean,
+      bodyColor?: string,
+      nameLabelColor?: string,
     ) => {
       const rx = ax - cx + canvas.width / 2;
       const ry = ay - cy + canvas.height / 2;
@@ -1966,7 +2255,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       ctx.translate(rx, ry);
 
       // Draw sliding dust trail if dashing
-      const charDashing = isPlayerAvatar ? playr.isDashing : bt.isDashing;
+      const charDashing = entityDashing !== undefined ? entityDashing : (isPlayerAvatar ? playr.isDashing : bt.isDashing);
       if (charDashing) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
         ctx.beginPath();
@@ -1978,7 +2267,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       ctx.rotate(angle);
 
       // Draw Roblox square Block shoulders/torso
-      ctx.fillStyle = isPlayerAvatar ? '#3b82f6' : '#ef4444'; // blue vs red teams
+      ctx.fillStyle = bodyColor ?? (isPlayerAvatar ? '#3b82f6' : '#ef4444');
       ctx.fillRect(-15, -15, 22, 30);
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 2;
@@ -2032,7 +2321,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // A. Label
       ctx.font = 'bold 11px system-ui, sans-serif';
-      ctx.fillStyle = isPlayerAvatar ? '#3b82f6' : '#f97316';
+      ctx.fillStyle = nameLabelColor ?? (isPlayerAvatar ? '#3b82f6' : '#f97316');
       ctx.shadowColor = 'black';
       ctx.shadowBlur = 4;
       ctx.textAlign = 'center';
@@ -2102,20 +2391,27 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       playerWeapon.type === 'katana'
     );
 
-    // Draw Bot enemy
-    drawAvatar(
-      bt.x,
-      bt.y,
-      bt.facingAngle,
-      gameState.botHealth,
-      gameState.botMaxHealth,
-      gameState.botShield,
-      gameState.botMaxShield,
-      botSkin,
-      bot.name,
-      false,
-      WEAPON_TYPES[bot.favoriteWeapon].type === 'katana'
-    );
+    // Draw Bot enemy (enemy1)
+    if (gameState.botHealth > 0) {
+      drawAvatar(bt.x, bt.y, bt.facingAngle, gameState.botHealth, gameState.botMaxHealth, gameState.botShield, gameState.botMaxShield, botSkin, bot.name, false, WEAPON_TYPES[bot.favoriteWeapon].type === 'katana', bt.isDashing, '#ef4444', '#f97316');
+    }
+
+    // 2v2: Draw Ally (green) and Enemy2 (red)
+    if (is2v2) {
+      const al = allyRef.current;
+      const b2 = bot2Ref.current;
+      const ts = teamState;
+      if (allyAliveRef.current) {
+        const allyWeapon = allyBot ? WEAPON_TYPES[allyBot.favoriteWeapon] : WEAPON_TYPES.rifle;
+        const allySkin2 = allyBotSkin ?? WEAPON_SKINS[0];
+        drawAvatar(al.x, al.y, al.facingAngle, ts.allyHealth, 100, ts.allyShield, 100, allySkin2, `[아군] ${allyBot?.name ?? 'Ally'}`, false, allyWeapon.type === 'katana', al.isDashing, '#22c55e', '#22c55e');
+      }
+      if (bot2AliveRef.current) {
+        const bot2Weapon = bot2 ? WEAPON_TYPES[bot2.favoriteWeapon] : WEAPON_TYPES.rifle;
+        const bot2SkinDraw = bot2Skin ?? WEAPON_SKINS[1] ?? WEAPON_SKINS[0];
+        drawAvatar(b2.x, b2.y, b2.facingAngle, ts.bot2Health, 100, ts.bot2Shield, 100, bot2SkinDraw, bot2?.name ?? 'Enemy2', false, bot2Weapon.type === 'katana', b2.isDashing, '#ef4444', '#f97316');
+      }
+    }
 
     // 7. Render dynamic particle burst
     particlesRef.current.forEach((p) => p.draw(ctx, cx - canvas.width / 2, cy - canvas.height / 2));
@@ -2225,11 +2521,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           
           <div className="hidden md:flex items-center gap-2">
             <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded border font-mono tracking-wider ${
-              gameMode === 'ranked' 
-                ? 'bg-rose-550/10 text-rose-400 border-rose-500/20 shadow-[0_0_8px_rgba(244,63,94,0.1)]' 
+              gameMode === 'ranked'
+                ? 'bg-rose-550/10 text-rose-400 border-rose-500/20'
+                : gameMode === '2v2'
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                 : 'bg-indigo-500/10 text-indigo-450 border-indigo-500/15'
             }`}>
-              {gameMode === 'ranked' ? '🏆 RANKED' : '⚔️ CASUAL'}
+              {gameMode === 'ranked' ? '🏆 RANKED' : gameMode === '2v2' ? '⚔️ 2v2 TEAM' : '⚔️ CASUAL'}
             </span>
           </div>
         </div>
@@ -2237,14 +2535,39 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         <div className="flex items-center gap-2 sm:gap-6">
           {/* Round Score display */}
           <div className="flex items-center gap-2 sm:gap-4 bg-slate-950 px-2 sm:px-4 py-1.5 rounded-full border border-slate-800">
-            <span className="text-[10px] sm:text-xs font-bold text-blue-400">YOU</span>
+            <span className={`text-[10px] sm:text-xs font-bold ${is2v2 ? 'text-emerald-400' : 'text-blue-400'}`}>{is2v2 ? 'TEAM' : 'YOU'}</span>
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="text-base sm:text-xl font-black text-white font-mono">{gameState.playerScore}</span>
               <span className="text-slate-600">:</span>
               <span className="text-base sm:text-xl font-black text-white font-mono">{gameState.botScore}</span>
             </div>
-            <span className="text-[10px] sm:text-xs font-bold text-red-400 uppercase">{bot.name.slice(0, 8)}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-red-400 uppercase">{is2v2 ? 'ENEMY' : bot.name.slice(0, 8)}</span>
           </div>
+
+          {/* 2v2 mini health strip */}
+          {is2v2 && (
+            <div className="hidden sm:flex items-center gap-2 bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-[9px] font-mono">
+              <span className="text-emerald-400 font-bold">아군</span>
+              <div className="flex flex-col gap-0.5">
+                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div style={{ width: `${teamState.allyHealth}%` }} className={`h-full rounded-full ${allyAliveRef.current ? 'bg-emerald-500' : 'bg-slate-600'}`} />
+                </div>
+                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div style={{ width: `${teamState.allyShield}%` }} className="h-full bg-cyan-500 rounded-full" />
+                </div>
+              </div>
+              <span className="text-slate-500">|</span>
+              <span className="text-red-400 font-bold">적2</span>
+              <div className="flex flex-col gap-0.5">
+                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div style={{ width: `${teamState.bot2Health}%` }} className={`h-full rounded-full ${bot2AliveRef.current ? 'bg-red-500' : 'bg-slate-600'}`} />
+                </div>
+                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div style={{ width: `${teamState.bot2Shield}%` }} className="h-full bg-cyan-500 rounded-full" />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Round Countdown */}
           <div className="flex flex-col items-center">

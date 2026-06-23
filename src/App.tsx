@@ -45,7 +45,11 @@ export default function App() {
     botSkin: WeaponSkin;
     loadoutSlots: Record<string, WeaponType>;
     equippedSkins: Record<string, string>;
-    gameMode: 'casual' | 'ranked';
+    gameMode: 'casual' | 'ranked' | '2v2';
+    allyBot?: BotProfile;
+    allyBotSkin?: WeaponSkin;
+    bot2?: BotProfile;
+    bot2Skin?: WeaponSkin;
   } | null>(null);
 
   const [lastRankedReport, setLastRankedReport] = useState<{
@@ -238,9 +242,13 @@ export default function App() {
     botSkin: WeaponSkin,
     lobbyLoadoutSlots: Record<string, WeaponType>,
     lobbyEquippedSkins: Record<string, string>,
-    gameMode: 'casual' | 'ranked' = 'casual'
+    gameMode: 'casual' | 'ranked' | '2v2' = 'casual',
+    allyBot?: BotProfile,
+    allyBotSkin?: WeaponSkin,
+    bot2?: BotProfile,
+    bot2Skin?: WeaponSkin,
   ) => {
-    setActiveSession({ bot, botSkin, loadoutSlots: lobbyLoadoutSlots, equippedSkins: lobbyEquippedSkins, gameMode });
+    setActiveSession({ bot, botSkin, loadoutSlots: lobbyLoadoutSlots, equippedSkins: lobbyEquippedSkins, gameMode, allyBot, allyBotSkin, bot2, bot2Skin });
     setScreen('game');
   };
 
@@ -249,6 +257,7 @@ export default function App() {
 
     if (finalWinner && activeSession) {
       const isRanked = activeSession.gameMode === 'ranked';
+      const is2v2 = activeSession.gameMode === '2v2';
       const win = finalWinner === 'player';
       const botDifficulty = activeSession.bot.difficulty;
 
@@ -277,8 +286,8 @@ export default function App() {
       }
 
       setStats((prev) => {
-        const earnedGold = win ? (isRanked ? 180 : 120) : (isRanked ? 50 : 30);
-        const earnedGems = win ? (isRanked ? 20 : 15) : (isRanked ? 4 : 2);
+        const earnedGold = win ? (isRanked ? 180 : is2v2 ? 150 : 120) : (isRanked ? 50 : is2v2 ? 40 : 30);
+        const earnedGems = win ? (isRanked ? 20 : is2v2 ? 18 : 15) : (isRanked ? 4 : is2v2 ? 3 : 2);
         let nextXp = prev.xp + (win ? 80 : 30);
         let nextLevel = prev.level;
         if (nextXp >= 100) { nextXp -= 100; nextLevel += 1; }
@@ -395,6 +404,10 @@ export default function App() {
               loadoutSlots={activeSession.loadoutSlots}
               equippedSkins={activeSession.equippedSkins}
               gameMode={activeSession.gameMode}
+              allyBot={activeSession.allyBot}
+              allyBotSkin={activeSession.allyBotSkin}
+              bot2={activeSession.bot2}
+              bot2Skin={activeSession.bot2Skin}
             />
           </div>
         )
