@@ -2443,8 +2443,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       );
     }
 
-    // Draw Bot enemy (enemy1)
-    if (gameState.botHealth > 0) {
+    // Draw Bot enemy (enemy1) — hide immediately on death using ref (not stale React state)
+    if (bot1AliveRef.current) {
       drawAvatar(bt.x, bt.y, bt.facingAngle, gameState.botHealth, gameState.botMaxHealth, gameState.botShield, gameState.botMaxShield, botSkin, bot.name, false, WEAPON_TYPES[bot.favoriteWeapon].type === 'katana', bt.isDashing, '#ef4444', '#f97316');
     }
 
