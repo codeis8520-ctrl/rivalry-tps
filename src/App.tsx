@@ -4,9 +4,11 @@ import { DEFAULT_CROSSHAIR } from './components/CrosshairEditor';
 import { Lobby } from './components/Lobby';
 import { GameCanvas } from './components/GameCanvas';
 import { AuthScreen } from './components/AuthScreen';
+import { GiftReceivedOverlay, GiftNotification } from './components/GiftReceivedOverlay';
 import { gameAudio } from './audio';
-import { isSupabaseConfigured } from './lib/supabase';
+import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { loadPlayerProfile, savePlayerProfile, signOutUser } from './lib/gameDB';
+import { WEAPON_SKINS } from './data';
 
 const DEFAULT_STATS: PlayerStats = {
   wins: 0, losses: 0, kills: 0, deaths: 0, headshots: 0,
@@ -49,6 +51,8 @@ export default function App() {
   const [lastRankedReport, setLastRankedReport] = useState<{
     win: boolean; rpChange: number; oldRP: number; newRP: number; botName: string;
   } | null>(null);
+
+  const [giftNotification, setGiftNotification] = useState<GiftNotification | null>(null);
 
   // Debounce ref for Supabase saves
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -108,6 +112,51 @@ export default function App() {
       setAuthLoading(false);
     }
   }, []);
+
+  // Supabase Realtime — 어드민 선물 감지
+  useEffect(() => {
+    if (!currentUser || !isSupabaseConfigured()) return;
+
+    const channel = supabase
+      .channel(`gift-watch-${currentUser}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'player_profiles',
+          filter: `username=eq.${currentUser.trim().toLowerCase()}`,
+        },
+        (payload) => {
+          const newStats = (payload.new as { stats: PlayerStats; inventory: string[] }).stats;
+          const newInventory = (payload.new as { stats: PlayerStats; inventory: string[] }).inventory;
+          const oldStats = (payload.old as { stats: PlayerStats; inventory: string[] }).stats;
+          const oldInventory = (payload.old as { stats: PlayerStats; inventory: string[] }).inventory ?? [];
+
+          const goldDelta = (newStats?.gold ?? 0) - (oldStats?.gold ?? 0);
+          const gemsDelta = (newStats?.gems ?? 0) - (oldStats?.gems ?? 0);
+          const rpDelta = (newStats?.rankedRP ?? 0) - (oldStats?.rankedRP ?? 0);
+
+          const newSkinId = newInventory?.find((id: string) => !oldInventory.includes(id));
+          const skinName = newSkinId ? (WEAPON_SKINS.find(s => s.id === newSkinId)?.name ?? undefined) : undefined;
+
+          // 양수 변화가 있을 때만 선물 알림
+          if (goldDelta > 0 || gemsDelta > 0 || rpDelta > 0 || skinName) {
+            setStats(newStats);
+            if (newInventory) setInventory(newInventory);
+            setGiftNotification({
+              gold: Math.max(0, goldDelta),
+              gems: Math.max(0, gemsDelta),
+              rp: Math.max(0, rpDelta),
+              skinName,
+            });
+          }
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser]);
 
   // 로컬 캐시 동기화
   useEffect(() => { if (currentUser) ls.set(lsKey('stats'), stats); }, [stats, currentUser]);
@@ -271,6 +320,7 @@ export default function App() {
 
   return (
     <div className={`w-full bg-slate-950 selection:bg-indigo-600/30 ${isGameActive ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
+      <GiftReceivedOverlay notification={giftNotification} onDismiss={() => setGiftNotification(null)} />
       {!currentUser ? (
         <div className="flex items-center justify-center min-h-screen p-4">
           <div className="w-full max-w-md">
