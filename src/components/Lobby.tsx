@@ -132,6 +132,8 @@ export const Lobby: React.FC<LobbyProps> = ({
 
   // Armory selected weapon categories
   const [selectedWeaponCategory, setSelectedWeaponCategory] = useState<string>('rifle');
+  // 로드아웃 슬롯 선택 (클릭 배정 방식)
+  const [selectedLoadoutSlot, setSelectedLoadoutSlot] = useState<string | null>(null);
 
   // Admin Gift Rewards variables
   const [adminTargetUser, setAdminTargetUser] = useState<string>('');
@@ -1052,29 +1054,77 @@ export const Lobby: React.FC<LobbyProps> = ({
                   </span>
                 </div>
 
-                {/* Loadout Slots */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {([
-                    { slot: 'slot1', label: '1', tag: '주무기', tagColor: 'text-indigo-400 bg-indigo-500/10' },
-                    { slot: 'slot2', label: '2', tag: '보조', tagColor: 'text-indigo-400 bg-indigo-500/10' },
-                    { slot: 'slot3', label: '3', tag: '근접', tagColor: 'text-pink-400 bg-pink-500/10' },
-                    { slot: 'slot4', label: '4', tag: '폭발물', tagColor: 'text-purple-400 bg-purple-500/10' },
-                  ] as const).map(({ slot, label, tag, tagColor }) => (
-                    <div key={slot} className="bg-slate-900 rounded-xl border border-slate-800 p-3 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center text-[11px] font-black text-slate-300 font-mono">{label}</span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded font-mono ${tagColor}`}>{tag}</span>
-                      </div>
-                      <select
-                        value={loadoutSlots[slot] || 'rifle'}
-                        onChange={(e) => { gameAudio.playClickSound(); onUpdateLoadoutSlots({ ...loadoutSlots, [slot]: e.target.value as WeaponType }); }}
-                        className="w-full bg-slate-950 border border-slate-800 text-xs font-bold text-white rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
-                      >
-                        {Object.entries(WEAPON_TYPES).map(([k, v]) => <option key={k} value={k}>{v.name}</option>)}
-                      </select>
-                    </div>
-                  ))}
+                {/* Loadout Slots — 클릭해서 슬롯 선택 후 아래 무기 카드 클릭으로 배정 */}
+                <div className="space-y-2">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                    {selectedLoadoutSlot ? `슬롯 [${selectedLoadoutSlot.replace('slot','')}] 선택됨 — 아래에서 무기를 클릭하세요` : '슬롯을 먼저 클릭하세요'}
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                    {([
+                      { slot: 'slot1', label: '1', tag: '주무기' },
+                      { slot: 'slot2', label: '2', tag: '보조' },
+                      { slot: 'slot3', label: '3', tag: '근접' },
+                      { slot: 'slot4', label: '4', tag: '폭발물' },
+                    ] as const).map(({ slot, label, tag }) => {
+                      const weaponKey = loadoutSlots[slot] || 'rifle';
+                      const weapon = WEAPON_TYPES[weaponKey];
+                      const isSelected = selectedLoadoutSlot === slot;
+                      return (
+                        <button
+                          key={slot}
+                          onClick={() => { gameAudio.playClickSound(); setSelectedLoadoutSlot(isSelected ? null : slot); }}
+                          className={`rounded-xl p-3 text-left transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-indigo-600/20 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                              : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-black font-mono ${isSelected ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-400'}`}>{label}</span>
+                            <span className="text-[9px] font-bold text-slate-500 font-mono">{tag}</span>
+                          </div>
+                          <p className="text-xs font-black text-white leading-tight">{weapon?.name ?? '—'}</p>
+                          <div className="mt-1.5 flex gap-1">
+                            <div style={{ width: `${Math.min(100, (weapon?.damage ?? 0) / 110 * 100)}%` }} className="h-0.5 bg-indigo-500 rounded-full" />
+                          </div>
+                          <p className="text-[9px] text-slate-500 mt-1 font-mono">공격력 {weapon?.damage ?? 0} · 탄창 {weapon?.maxAmmo ?? 0}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+
+                {/* 무기 선택 그리드 (슬롯 선택 시 표시) */}
+                {selectedLoadoutSlot && (
+                  <div className="bg-slate-900/60 border border-indigo-500/20 rounded-2xl p-4 space-y-3">
+                    <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">무기 선택</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                      {Object.entries(WEAPON_TYPES).map(([key, w]) => {
+                        const isEquipped = loadoutSlots[selectedLoadoutSlot as keyof typeof loadoutSlots] === key;
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => {
+                              gameAudio.playClickSound();
+                              onUpdateLoadoutSlots({ ...loadoutSlots, [selectedLoadoutSlot]: key as WeaponType });
+                              setSelectedLoadoutSlot(null);
+                            }}
+                            className={`rounded-xl p-3 text-left transition-all cursor-pointer border ${
+                              isEquipped
+                                ? 'bg-indigo-600/20 border-indigo-500'
+                                : 'bg-slate-950 border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900'
+                            }`}
+                          >
+                            <p className="text-xs font-black text-white leading-tight">{w.name}</p>
+                            <p className="text-[9px] text-slate-500 mt-1 font-mono">공격력 {w.damage}</p>
+                            <p className="text-[9px] text-slate-500 font-mono">탄창 {w.maxAmmo} · {w.reloadTime}s</p>
+                            {isEquipped && <span className="mt-1.5 inline-flex items-center gap-0.5 text-[9px] text-indigo-400 font-bold"><CheckCircle className="w-2.5 h-2.5" />장착됨</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Category Pills */}
                 <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5">
