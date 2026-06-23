@@ -1250,18 +1250,22 @@ export const Lobby: React.FC<LobbyProps> = ({
                 )}
 
                 {/* Category Pills */}
-                <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5">
-                  {Object.entries(WEAPON_TYPES).map(([type, details]) => (
-                    <button
-                      key={type}
-                      onClick={() => { gameAudio.playClickSound(); setSelectedWeaponCategory(type); }}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${
-                        selectedWeaponCategory === type ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-                      }`}
-                    >
-                      {details.name}
-                    </button>
-                  ))}
+                <div className="relative">
+                  {/* right fade hint */}
+                  <div className="pointer-events-none absolute right-0 top-0 h-full w-10 bg-gradient-to-l from-slate-950 to-transparent z-10" />
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                    {Object.entries(WEAPON_TYPES).map(([type, details]) => (
+                      <button
+                        key={type}
+                        onClick={() => { gameAudio.playClickSound(); setSelectedWeaponCategory(type); }}
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${
+                          selectedWeaponCategory === type ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                        }`}
+                      >
+                        {details.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Weapon Detail + Skin Grid */}
