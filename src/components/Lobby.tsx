@@ -4,7 +4,7 @@ import { gameAudio } from '../audio';
 import { WEAPON_TYPES, WEAPON_SKINS, CASES, BOTS } from '../data';
 import { CrosshairEditor } from './CrosshairEditor';
 import { LeaderboardScreen } from './LeaderboardScreen';
-import { fetchAllUsernames, adminGrantReward, isSupabaseConfigured } from '../lib/gameDB';
+import { fetchAllUsernames, adminGrantReward, adminRevokeReward, isSupabaseConfigured } from '../lib/gameDB';
 import {
   Trophy,
   ShoppingBag,
@@ -30,7 +30,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   LogOut,
-  Gift
+  Gift,
+  Trash2
 } from 'lucide-react';
 
 export interface RankInfo {
@@ -144,6 +145,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   const [adminSuccessMsg, setAdminSuccessMsg] = useState<string>('');
   const [adminErrorMsg, setAdminErrorMsg] = useState<string>('');
   const [registeredUsers, setRegisteredUsers] = useState<string[]>([]);
+  const [adminMode, setAdminMode] = useState<'grant' | 'revoke'>('grant');
 
   useEffect(() => {
     if (activeTab !== 'admin') return;
@@ -258,6 +260,67 @@ export const Lobby: React.FC<LobbyProps> = ({
       } catch (e) {
         console.error(e);
         setAdminErrorMsg('보상 지급 중 로컬 데이터베이스 처리 오류가 발생했습니다.');
+      }
+    }
+  };
+
+  const handleRevokeReward = async () => {
+    setAdminSuccessMsg('');
+    setAdminErrorMsg('');
+    gameAudio.playClickSound();
+
+    if (!adminTargetUser) {
+      setAdminErrorMsg('대상 유저를 선택하세요.');
+      return;
+    }
+
+    const cleanTargetUser = adminTargetUser.trim().toLowerCase();
+    const skinId = adminSelectedSkin !== 'none' ? adminSelectedSkin : undefined;
+
+    if (isSupabaseConfigured()) {
+      const { error, newStats } = await adminRevokeReward(
+        cleanTargetUser,
+        Number(adminGoldAmount) || 0,
+        Number(adminGemsAmount) || 0,
+        Number(adminRPAmount) || 0,
+        skinId,
+      );
+      if (error) { setAdminErrorMsg(error); return; }
+      if (cleanTargetUser === currentUser?.trim().toLowerCase() && newStats) {
+        onUpdateStats(() => newStats);
+        if (skinId) onUpdateInventory((inventory as string[]).filter((id: string) => id !== skinId));
+      }
+      const skinObj = skinId ? WEAPON_SKINS.find(s => s.id === skinId) : null;
+      const skinText = skinObj ? `, [${skinObj.name}] 스킨` : '';
+      setAdminSuccessMsg(`'${cleanTargetUser}'님 골드 -${(Number(adminGoldAmount)||0).toLocaleString()}, 젬 -${(Number(adminGemsAmount)||0).toLocaleString()}, RP -${(Number(adminRPAmount)||0).toLocaleString()}${skinText} 제거 완료.`);
+    } else {
+      try {
+        const statsKey = `rivals_user_${cleanTargetUser}_stats`;
+        const raw = localStorage.getItem(statsKey);
+        const s = raw ? JSON.parse(raw) : { gold: 0, gems: 0, rankedRP: 100 };
+        s.gold = Math.max(0, (s.gold || 0) - (Number(adminGoldAmount) || 0));
+        s.gems = Math.max(0, (s.gems || 0) - (Number(adminGemsAmount) || 0));
+        s.rankedRP = Math.max(100, (s.rankedRP || 100) - (Number(adminRPAmount) || 0));
+        localStorage.setItem(statsKey, JSON.stringify(s));
+        if (skinId) {
+          const invKey = `rivals_user_${cleanTargetUser}_inventory`;
+          const rawInv = localStorage.getItem(invKey);
+          const inv: string[] = rawInv ? JSON.parse(rawInv) : [];
+          localStorage.setItem(invKey, JSON.stringify(inv.filter(id => id !== skinId)));
+        }
+        if (cleanTargetUser === currentUser?.trim().toLowerCase()) {
+          onUpdateStats((prev: PlayerStats) => ({
+            ...prev,
+            gold: Math.max(0, (prev.gold || 0) - (Number(adminGoldAmount) || 0)),
+            gems: Math.max(0, (prev.gems || 0) - (Number(adminGemsAmount) || 0)),
+            rankedRP: Math.max(100, (prev.rankedRP || 100) - (Number(adminRPAmount) || 0)),
+          }));
+          if (skinId) onUpdateInventory((inventory as string[]).filter((id: string) => id !== skinId));
+        }
+        setAdminSuccessMsg(`'${cleanTargetUser}'님 재화/스킨 제거 완료.`);
+      } catch (e) {
+        console.error(e);
+        setAdminErrorMsg('로컬 처리 오류가 발생했습니다.');
       }
     }
   };
@@ -1458,14 +1521,24 @@ export const Lobby: React.FC<LobbyProps> = ({
                       className="w-full py-1.5 text-slate-500 hover:text-rose-400 font-mono font-bold text-[11px] rounded-lg border border-slate-800 hover:border-rose-500/30 transition-all cursor-pointer">초기화</button>
                   </div>
 
-                  {/* 선물 지급 */}
-                  <div className="bg-slate-900 rounded-xl border border-emerald-500/20 p-4 space-y-3 md:col-span-2">
+                  {/* 선물 지급 / 제거 */}
+                  <div className={`bg-slate-900 rounded-xl border p-4 space-y-3 md:col-span-2 ${adminMode === 'grant' ? 'border-emerald-500/20' : 'border-rose-500/20'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Gift className="w-4 h-4 text-emerald-400" />
-                        <h3 className="text-xs font-black text-white uppercase">선물 지급</h3>
+                        <Gift className={`w-4 h-4 ${adminMode === 'grant' ? 'text-emerald-400' : 'text-rose-400'}`} />
+                        <h3 className="text-xs font-black text-white uppercase">{adminMode === 'grant' ? '재화 지급' : '재화 제거'}</h3>
                       </div>
-                      <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">플레이어 간 지급</span>
+                      {/* 모드 토글 */}
+                      <div className="flex bg-slate-950 border border-slate-800 rounded-lg p-0.5 gap-0.5">
+                        <button onClick={() => { gameAudio.playClickSound(); setAdminMode('grant'); setAdminSuccessMsg(''); setAdminErrorMsg(''); }}
+                          className={`px-3 py-1 text-[10px] font-black rounded-md transition-all cursor-pointer ${adminMode === 'grant' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                          지급
+                        </button>
+                        <button onClick={() => { gameAudio.playClickSound(); setAdminMode('revoke'); setAdminSuccessMsg(''); setAdminErrorMsg(''); }}
+                          className={`px-3 py-1 text-[10px] font-black rounded-md transition-all cursor-pointer ${adminMode === 'revoke' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                          제거
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1514,17 +1587,24 @@ export const Lobby: React.FC<LobbyProps> = ({
                       </div>
                     </div>
 
-                    {/* 스킨 + 지급 버튼 */}
+                    {/* 스킨 + 실행 버튼 */}
                     <div className="flex flex-col sm:flex-row gap-3">
                       <select value={adminSelectedSkin} onChange={(e) => { gameAudio.playClickSound(); setAdminSelectedSkin(e.target.value); }}
-                        className="flex-1 text-xs bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-white outline-none focus:border-emerald-500/50 cursor-pointer">
-                        <option value="none">스킨 미지급</option>
+                        className={`flex-1 text-xs bg-slate-950 border rounded-lg px-2.5 py-2 text-white outline-none cursor-pointer ${adminMode === 'grant' ? 'border-slate-800 focus:border-emerald-500/50' : 'border-slate-800 focus:border-rose-500/50'}`}>
+                        <option value="none">{adminMode === 'grant' ? '스킨 미지급' : '스킨 제거 안 함'}</option>
                         {WEAPON_SKINS.map(s => <option key={s.id} value={s.id}>[{s.weaponType.toUpperCase()}] {s.name}</option>)}
                       </select>
-                      <button onClick={handleGrantReward}
-                        className="px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1.5 shrink-0">
-                        <Gift className="w-3.5 h-3.5" /> 지급
-                      </button>
+                      {adminMode === 'grant' ? (
+                        <button onClick={handleGrantReward}
+                          className="px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1.5 shrink-0">
+                          <Gift className="w-3.5 h-3.5" /> 지급
+                        </button>
+                      ) : (
+                        <button onClick={handleRevokeReward}
+                          className="px-5 py-2 bg-gradient-to-r from-rose-700 to-red-600 hover:from-rose-600 hover:to-red-500 text-white font-black text-xs rounded-lg cursor-pointer transition-all flex items-center justify-center gap-1.5 shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" /> 제거
+                        </button>
+                      )}
                     </div>
 
                     {adminSuccessMsg && (

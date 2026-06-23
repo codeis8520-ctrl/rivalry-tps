@@ -217,3 +217,34 @@ export async function adminGrantReward(
   if (error) return { error: `지급 실패: ${error.message}` };
   return { error: null, newStats };
 }
+
+// ── 어드민: 특정 유저 재화/스킨 제거 ────────────────────────────────────────
+export async function adminRevokeReward(
+  targetUsername: string,
+  goldDelta: number,
+  gemsDelta: number,
+  rpDelta: number,
+  skinId?: string,
+): Promise<{ error: string | null; newStats?: PlayerStats }> {
+  const profile = await loadPlayerProfile(targetUsername);
+  const newStats: PlayerStats = {
+    ...profile.stats,
+    gold: Math.max(0, (profile.stats.gold ?? 0) - goldDelta),
+    gems: Math.max(0, (profile.stats.gems ?? 0) - gemsDelta),
+    rankedRP: Math.max(100, (profile.stats.rankedRP ?? 100) - rpDelta),
+  };
+
+  const newInventory = skinId && skinId !== 'none'
+    ? profile.inventory.filter((id: string) => id !== skinId)
+    : profile.inventory;
+
+  const { error } = await supabase
+    .from('player_profiles')
+    .upsert(
+      { username: targetUsername, stats: newStats, inventory: newInventory, updated_at: new Date().toISOString() },
+      { onConflict: 'username' },
+    );
+
+  if (error) return { error: `제거 실패: ${error.message}` };
+  return { error: null, newStats };
+}
