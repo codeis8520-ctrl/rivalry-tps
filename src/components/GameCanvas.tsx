@@ -430,6 +430,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const allyAliveRef = useRef(true);
   const bot2AliveRef = useRef(true);
   const bot1AliveRef = useRef(true);
+  // 2v2: player died but ally still alive → spectating ally
+  const isSpectatingRef = useRef(false);
+  const [isSpectating, setIsSpectating] = React.useState(false);
   const teamStateRef = useRef(teamState);
   teamStateRef.current = teamState;
 
@@ -842,6 +845,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       allyAliveRef.current = true;
       bot2AliveRef.current = true;
       bot1AliveRef.current = true;
+      isSpectatingRef.current = false;
+      setIsSpectating(false);
       setTeamState({ allyHealth: 100, allyShield: 100, bot2Health: 100, bot2Shield: 100 });
     }
 
@@ -1015,8 +1020,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- ACTIVE MATCH CONTROLS & LOGIC ---
 
-    // 1. Process Player Keyboard Input Movement
-    if (!playr.isDashing) {
+    // 1. Process Player Keyboard Input Movement (disabled while spectating)
+    if (!playr.isDashing && !isSpectatingRef.current) {
       let dx = 0;
       let dy = 0;
       if (keysRef.current['w'] || keysRef.current['arrowup']) dy -= 1;
@@ -1112,9 +1117,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     particlesRef.current.forEach((p) => p.update());
     particlesRef.current = particlesRef.current.filter((p) => p.life > 0);
 
-    // 6. Camera follows Player smoothly (lerp)
-    cameraRef.current.x += (playr.x - cameraRef.current.x) * 0.1;
-    cameraRef.current.y += (playr.y - cameraRef.current.y) * 0.1;
+    // 6. Camera follows Player (or ally when spectating in 2v2)
+    const camTarget = (is2v2 && isSpectatingRef.current) ? allyRef.current : playr;
+    cameraRef.current.x += (camTarget.x - cameraRef.current.x) * 0.1;
+    cameraRef.current.y += (camTarget.y - cameraRef.current.y) * 0.1;
 
     // Hard camera boundary lock
     const cw = canvasRef.current?.width || 800;
@@ -1194,6 +1200,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   const firePlayerWeapon = () => {
+    if (isSpectatingRef.current) return; // can't shoot while spectating
     const playr = playerRef.current;
     const now = Date.now();
     if (now - playr.lastShotTime < playerWeapon.fireRate) return;
@@ -1722,7 +1729,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           if (target === 'ally') {
             allyAliveRef.current = false;
             for (let i = 0; i < 20; i++) particlesRef.current.push(new Particle(ex, ey, '#4ade80', 2));
-            addChatMessage('SYSTEM', '💀 아군 봇 전사! 혼자서 싸워라!');
+            if (isSpectatingRef.current) {
+              // player is dead and was watching ally → now both team members dead → round over
+              isSpectatingRef.current = false;
+              setIsSpectating(false);
+              addChatMessage('SYSTEM', `💀 ${allyBot?.name ?? '아군'} 전사! 라운드 패배...`);
+              triggerRoundOver('bot');
+            } else {
+              addChatMessage('SYSTEM', `💀 ${allyBot?.name ?? '아군'} 전사! 혼자서 싸워라!`);
+            }
           } else if (target === 'bot2') {
             bot2AliveRef.current = false;
             gameAudio.playKillSound();
@@ -2022,6 +2037,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       // Bloat death splatter
       for (let i = 0; i < 24; i++) {
         particlesRef.current.push(new Particle(playerRef.current.x, playerRef.current.y, '#ef4444', 2));
+      }
+
+      // 2v2: if ally is still alive, enter spectator mode instead of round over
+      if (is2v2 && allyAliveRef.current) {
+        isSpectatingRef.current = true;
+        setIsSpectating(true);
+        addChatMessage('SYSTEM', `☠️ 전사! ${allyBot?.name ?? '아군'} 관전 중...`);
+        // freeze player in place
+        playerRef.current.vx = 0;
+        playerRef.current.vy = 0;
+        return;
       }
 
       triggerRoundOver('bot');
@@ -2623,6 +2649,29 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           onTouchCancel={handleTouchEnd}
         >
           <canvas ref={canvasRef} className="block w-full h-full" />
+
+          {/* ── 2v2 SPECTATOR OVERLAY ── */}
+          {isSpectating && (
+            <div className="absolute inset-x-0 top-0 flex flex-col items-center pointer-events-none z-20">
+              {/* Top banner */}
+              <div className="mt-3 px-5 py-2 bg-slate-950/90 border border-emerald-500/40 rounded-full flex items-center gap-2.5 shadow-lg shadow-emerald-900/20 backdrop-blur-sm">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-emerald-400 font-black text-xs uppercase tracking-widest font-mono">관전 중</span>
+                <span className="text-slate-400 text-[11px] font-bold">—</span>
+                <span className="text-white font-black text-xs">{allyBot?.name ?? '아군'}</span>
+              </div>
+              {/* Subtitle */}
+              <div className="mt-1.5 text-[10px] text-slate-500 font-mono uppercase tracking-wider">
+                아군이 쓰러지면 라운드 패배
+              </div>
+            </div>
+          )}
+
+          {/* Spectator screen-edge vignette */}
+          {isSpectating && (
+            <div className="absolute inset-0 pointer-events-none z-10"
+              style={{ boxShadow: 'inset 0 0 60px 20px rgba(34,197,94,0.12)' }} />
+          )}
 
           {/* ── FIXED VIRTUAL JOYSTICK (mobile only) ── */}
           <div
