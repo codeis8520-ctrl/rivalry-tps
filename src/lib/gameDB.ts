@@ -28,8 +28,8 @@ const DEFAULT_PROFILE: PlayerProfile = {
     wins: 0, losses: 0, kills: 0, deaths: 0, headshots: 0,
     gold: 300, gems: 10, level: 1, xp: 0, winStreak: 0, rankedRP: 100,
   },
-  inventory: ['p_default', 'r_default', 's_default', 'sn_default', 'rpg_default', 'kd_default', 'smg_default'],
-  equippedSkins: { pistol: 'p_default', rifle: 'r_default', smg: 'smg_default', shotgun: 's_default', sniper: 'sn_default', rpg: 'rpg_default', katana: 'kd_default' },
+  inventory: ['p_default', 'r_default', 's_default', 'sn_default', 'rpg_default', 'kd_default', 'smg_default', 'rv_default', 'mg_default', 'lmg_default', 'cb_default'],
+  equippedSkins: { pistol: 'p_default', rifle: 'r_default', smg: 'smg_default', shotgun: 's_default', sniper: 'sn_default', rpg: 'rpg_default', katana: 'kd_default', revolver: 'rv_default', minigun: 'mg_default', lmg: 'lmg_default', crossbow: 'cb_default' },
   loadoutSlots: { slot1: 'rifle', slot2: 'pistol', slot3: 'katana', slot4: 'rpg' },
   crosshair: DEFAULT_CROSSHAIR,
 };

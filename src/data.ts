@@ -97,15 +97,75 @@ export const WEAPON_TYPES: Record<string, WeaponStats> = {
     damage: 60,
     headshotMult: 1.2,
     fireRate: 3000,
-    reloadTime: 0.1, // virtually no reload
-    maxAmmo: 1, // always "loaded"
-    range: 120, // close range strike
-    bulletSpeed: 18, // dash speed
+    reloadTime: 0.1,
+    maxAmmo: 1,
+    range: 120,
+    bulletSpeed: 18,
     spread: 0.0,
     bulletCount: 1,
     color: '#ec4899',
     description: '치명적인 사신의 큰 낫입니다. 고속 질주 대시를 가동하여 정면에 포착된 모든 적을 일도양단합니다.',
-  }
+  },
+  revolver: {
+    name: '.357 매그넘 리볼버',
+    type: 'revolver',
+    damage: 52,
+    headshotMult: 2.8,
+    fireRate: 580,
+    reloadTime: 2.5,
+    maxAmmo: 6,
+    range: 560,
+    bulletSpeed: 17,
+    spread: 0.013,
+    bulletCount: 1,
+    color: '#d97706',
+    description: '육혈포 고압 매그넘 권총입니다. 느리지만 한 발 한 발의 위력이 압도적이며 헤드샷 시 즉사에 가까운 피해를 입힙니다.',
+  },
+  minigun: {
+    name: 'M134 미니건',
+    type: 'minigun',
+    damage: 9,
+    headshotMult: 1.3,
+    fireRate: 45,
+    reloadTime: 5.0,
+    maxAmmo: 150,
+    range: 400,
+    bulletSpeed: 14,
+    spread: 0.09,
+    bulletCount: 1,
+    color: '#f59e0b',
+    description: '6연장 회전 바렐 미니건입니다. 초당 20발 이상의 물량 공세로 적 진영 전체를 탄막으로 가득 채웁니다.',
+  },
+  lmg: {
+    name: 'M249 경기관총',
+    type: 'lmg',
+    damage: 20,
+    headshotMult: 1.7,
+    fireRate: 95,
+    reloadTime: 4.5,
+    maxAmmo: 80,
+    range: 550,
+    bulletSpeed: 16,
+    spread: 0.048,
+    bulletCount: 1,
+    color: '#f97316',
+    description: '분대 지원 경기관총입니다. 80발 대용량 탄띠로 지속적인 압도적 화력을 제공합니다. 재장전이 오래 걸립니다.',
+  },
+  crossbow: {
+    name: '택티컬 크로스보우',
+    type: 'crossbow',
+    damage: 90,
+    headshotMult: 2.5,
+    fireRate: 1800,
+    reloadTime: 2.0,
+    maxAmmo: 4,
+    range: 700,
+    bulletSpeed: 19,
+    spread: 0.003,
+    bulletCount: 1,
+    color: '#8b5cf6',
+    description: '정밀 전술 크로스보우입니다. 소음 없이 강력한 볼트 하나로 적을 일격에 제압합니다. 헤드샷 시 치명적입니다.',
+  },
 };
 
 export const WEAPON_SKINS: WeaponSkin[] = [
@@ -175,7 +235,36 @@ export const WEAPON_SKINS: WeaponSkin[] = [
 
   // --- Extra RPG skins ---
   { id: 'rpg_crimson', name: '붉은 폭풍 크림슨 수류탄', weaponType: 'rpg', rarity: 'rare', primaryColor: '#ef4444', secondaryColor: '#1c1917', glow: false, pattern: 'fade' },
-  { id: 'rpg_galaxy', name: '은하 대파괴 코스믹 수류탄', weaponType: 'rpg', rarity: 'legendary', primaryColor: '#7c3aed', secondaryColor: '#020617', glow: true, pattern: 'galaxy' }
+  { id: 'rpg_galaxy', name: '은하 대파괴 코스믹 수류탄', weaponType: 'rpg', rarity: 'legendary', primaryColor: '#7c3aed', secondaryColor: '#020617', glow: true, pattern: 'galaxy' },
+
+  // --- Revolver skins ---
+  { id: 'rv_default', name: '냉간 단조 고압 강철 리볼버', weaponType: 'revolver', rarity: 'common', primaryColor: '#78716c', secondaryColor: '#292524', glow: false, pattern: 'solid' },
+  { id: 'rv_crimson', name: '피의 심판 크림슨 리볼버', weaponType: 'revolver', rarity: 'rare', primaryColor: '#dc2626', secondaryColor: '#0f172a', glow: false, pattern: 'fade' },
+  { id: 'rv_void', name: '공허의 총구 보이드 리볼버', weaponType: 'revolver', rarity: 'epic', primaryColor: '#6366f1', secondaryColor: '#020617', glow: true, pattern: 'galaxy' },
+  { id: 'rv_gold', name: '황금 건슬링어 리볼버', weaponType: 'revolver', rarity: 'legendary', primaryColor: '#f59e0b', secondaryColor: '#78350f', glow: true, pattern: 'gold_plated' },
+  { id: 'rv_sakura', name: '벚꽃 총잡이 사쿠라 리볼버', weaponType: 'revolver', rarity: 'rare', primaryColor: '#ec4899', secondaryColor: '#fce7f3', glow: false, pattern: 'fade' },
+  { id: 'rv_classified', name: '심연의 처형자 다크매터 리볼버', weaponType: 'revolver', rarity: 'classified', primaryColor: '#4c0519', secondaryColor: '#4f46e5', glow: true, pattern: 'galaxy' },
+
+  // --- Minigun skins ---
+  { id: 'mg_default', name: '전쟁 기계 냉간 강철 미니건', weaponType: 'minigun', rarity: 'common', primaryColor: '#374151', secondaryColor: '#111827', glow: false, pattern: 'solid' },
+  { id: 'mg_neon', name: '사이버 포격기 네온 미니건', weaponType: 'minigun', rarity: 'rare', primaryColor: '#06b6d4', secondaryColor: '#1e1b4b', glow: false, pattern: 'neon' },
+  { id: 'mg_inferno', name: '지옥불 학살자 인페르노 미니건', weaponType: 'minigun', rarity: 'epic', primaryColor: '#ef4444', secondaryColor: '#b45309', glow: true, pattern: 'fade' },
+  { id: 'mg_galaxy', name: '은하 폭풍 코스믹 미니건', weaponType: 'minigun', rarity: 'legendary', primaryColor: '#7c3aed', secondaryColor: '#1d4ed8', glow: true, pattern: 'galaxy' },
+  { id: 'mg_classified', name: '절멸의 신기 타이탄 미니건', weaponType: 'minigun', rarity: 'classified', primaryColor: '#f59e0b', secondaryColor: '#dc2626', glow: true, pattern: 'gold_plated' },
+
+  // --- LMG skins ---
+  { id: 'lmg_default', name: '분대 지원 밀리터리 경기관총', weaponType: 'lmg', rarity: 'common', primaryColor: '#1e293b', secondaryColor: '#0f172a', glow: false, pattern: 'solid' },
+  { id: 'lmg_neon', name: '전격 폭풍 네온 LMG', weaponType: 'lmg', rarity: 'rare', primaryColor: '#06b6d4', secondaryColor: '#1e1b4b', glow: false, pattern: 'neon' },
+  { id: 'lmg_desert', name: '사막 폭풍 디지털 카모 LMG', weaponType: 'lmg', rarity: 'rare', primaryColor: '#d97706', secondaryColor: '#451a03', glow: false, pattern: 'digital' },
+  { id: 'lmg_dragon', name: '용의 포효 드래곤 LMG', weaponType: 'lmg', rarity: 'legendary', primaryColor: '#f97316', secondaryColor: '#ca8a04', glow: true, pattern: 'galaxy' },
+  { id: 'lmg_classified', name: '전장의 신 워갓 LMG', weaponType: 'lmg', rarity: 'classified', primaryColor: '#dc2626', secondaryColor: '#7c3aed', glow: true, pattern: 'galaxy' },
+
+  // --- Crossbow skins ---
+  { id: 'cb_default', name: '숲의 정령 고목 크로스보우', weaponType: 'crossbow', rarity: 'common', primaryColor: '#3f2b0a', secondaryColor: '#166534', glow: false, pattern: 'solid' },
+  { id: 'cb_crimson', name: '피의 화살 크림슨 크로스보우', weaponType: 'crossbow', rarity: 'rare', primaryColor: '#dc2626', secondaryColor: '#1c1917', glow: false, pattern: 'fade' },
+  { id: 'cb_shadow', name: '암흑 저격 다크 크로스보우', weaponType: 'crossbow', rarity: 'epic', primaryColor: '#1e1b4b', secondaryColor: '#6366f1', glow: true, pattern: 'galaxy' },
+  { id: 'cb_gold', name: '황금 전설의 크로스보우', weaponType: 'crossbow', rarity: 'legendary', primaryColor: '#f59e0b', secondaryColor: '#064e3b', glow: true, pattern: 'gold_plated' },
+  { id: 'cb_classified', name: '신의 화살 디바인 크로스보우', weaponType: 'crossbow', rarity: 'classified', primaryColor: '#a855f7', secondaryColor: '#ec4899', glow: true, pattern: 'galaxy' },
 ];
 
 export const CASES: CaseType[] = [
@@ -186,7 +275,7 @@ export const CASES: CaseType[] = [
     currency: 'gold',
     customDescription: '기본적인 전투 훈련 및 장비 보급을 위한 전술 보물 상자입니다. 표준 클래식 위장 스킨들을 얻을 수 있습니다.',
     color: '#475569',
-    pool: ['p_default', 'p_forest', 'r_default', 's_default', 'sn_default', 'rpg_default', 'kd_default', 'smg_default', 'sn_phantom', 's_ghost']
+    pool: ['p_default', 'p_forest', 'r_default', 's_default', 'sn_default', 'rpg_default', 'kd_default', 'smg_default', 'sn_phantom', 's_ghost', 'rv_default', 'mg_default', 'lmg_default', 'cb_default']
   },
   {
     id: 'case_tactical',
@@ -195,7 +284,7 @@ export const CASES: CaseType[] = [
     currency: 'gold',
     customDescription: '특수 독성 화합물 형광 코팅과 전술적 경고 디지털 카모플라주 테인티드 레이아웃 컬렉션입니다.',
     color: '#0d9488',
-    pool: ['p_neon', 'p_electric', 'p_sakura', 'r_digital', 'r_arctic', 's_toxic', 's_acid', 'sn_blizzard', 'kd_plasma', 'kd_crimson', 'rpg_nuclear', 'rpg_crimson', 'smg_neon']
+    pool: ['p_neon', 'p_electric', 'p_sakura', 'r_digital', 'r_arctic', 's_toxic', 's_acid', 'sn_blizzard', 'kd_plasma', 'kd_crimson', 'rpg_nuclear', 'rpg_crimson', 'smg_neon', 'rv_crimson', 'rv_sakura', 'mg_neon', 'lmg_neon', 'lmg_desert', 'cb_crimson']
   },
   {
     id: 'case_classified',
@@ -204,7 +293,7 @@ export const CASES: CaseType[] = [
     currency: 'gems',
     customDescription: '차원을 왜곡하는 갤럭시 소용돌이 패턴과 찬란한 주권자 리전 무구 스킨셋을 영구 수집할 수 있는 최고급 보상 상자입니다.',
     color: '#7c3aed',
-    pool: ['p_gold', 'p_shadow', 'p_jade', 'r_magma', 'r_hyper', 'r_shadow', 'r_dragon', 'r_crimson', 's_void', 's_inferno', 'sn_nebula', 'sn_dragon', 'sn_emerald', 'sn_crimson', 'kd_secret', 'kd_samurai', 'kd_oni', 'smg_storm', 'smg_gold', 'smg_void', 'rpg_galaxy']
+    pool: ['p_gold', 'p_shadow', 'p_jade', 'r_magma', 'r_hyper', 'r_shadow', 'r_dragon', 'r_crimson', 's_void', 's_inferno', 'sn_nebula', 'sn_dragon', 'sn_emerald', 'sn_crimson', 'kd_secret', 'kd_samurai', 'kd_oni', 'smg_storm', 'smg_gold', 'smg_void', 'rpg_galaxy', 'rv_void', 'rv_gold', 'rv_classified', 'mg_inferno', 'mg_galaxy', 'mg_classified', 'lmg_dragon', 'lmg_classified', 'cb_shadow', 'cb_gold', 'cb_classified']
   }
 ];
 
@@ -455,6 +544,66 @@ export const BOTS: BotProfile[] = [
     tauntLines: ['심판은 내렸어.', '저항은 무의미했어.', '이미 끝났어.', '다음 라운드도 결과는 같아.'],
     deathLines: ['...흥미롭군.', '방심했어.', '다시 한번.', '이 오차는 없애겠어.'],
     banterLines: ['네 뒤를 항상 보고 있어.', '포위 중이야.', '이미 끝난 싸움이야.', '빠져나갈 방향이 없어.']
+  },
+  {
+    name: '건슬링어_레드',
+    title: '6연발의 서부 사나이',
+    difficulty: 'medium',
+    favoriteWeapon: 'revolver',
+    skinId: 'rv_crimson',
+    avatarColor: '#dc2626',
+    winRate: 54,
+    kdRate: 1.15,
+    badge: '골드',
+    chatReplies: ['총은 빠르게 뽑는 자가 이기는 법이지.', '6발이면 충분해.', '서부에선 말보단 총이 먼저야.', '겁나면 숨어.'],
+    tauntLines: ['탕! 끝났네.', '육혈포 한 방이면 충분하지.', '빠르게 뽑았지만 빠르게 죽었네.', '서부의 법칙이야.'],
+    deathLines: ['총알이 빨랐네...', '다음엔 더 빠르게 뽑겠어.', '탄창이 비었어.', '서부에서 지다니.'],
+    banterLines: ['6발 세고 있어?', '내 총 소리 들었어?', '조준 연습 좀 해봐.', '리볼버가 최고야.']
+  },
+  {
+    name: '탄막왕_맥스파이어',
+    title: '끝없는 탄막의 지배자',
+    difficulty: 'hard',
+    favoriteWeapon: 'minigun',
+    skinId: 'mg_inferno',
+    avatarColor: '#f59e0b',
+    winRate: 68,
+    kdRate: 1.80,
+    badge: '플래티넘',
+    chatReplies: ['탄막이 부족하다고? ㅋ', '150발 준비됐어.', '도망쳐봤자 총알이 더 빨라.', '포탄 세지 마.'],
+    tauntLines: ['150발 다 맞은 거야?', '탄막 속에서 살아남을 수 있어?', '미니건 앞에서 버틴 건 칭찬해.', '다음엔 더 쏴줄게.'],
+    deathLines: ['탄창이 비었을 때 틈을 노리다니...', '재장전 타이밍이 최악이었어.', '5초만 버텼으면...', '탄막왕의 몰락이군.'],
+    banterLines: ['지금 배럴 돌아가는 소리 들려?', '탄피 피해.', '불꽃놀이 시작이야.', '화력이 부족한 적은 없어.']
+  },
+  {
+    name: '고요한_저격수_유령',
+    title: '침묵의 크로스보우 사냥꾼',
+    difficulty: 'hard',
+    favoriteWeapon: 'crossbow',
+    skinId: 'cb_shadow',
+    avatarColor: '#6366f1',
+    winRate: 72,
+    kdRate: 2.10,
+    badge: '다이아몬드',
+    chatReplies: ['소리 없는 화살이 더 무서워.', '피할 수 없어.', '이미 조준했어.', '...'],
+    tauntLines: ['볼트 하나면 충분했어.', '소리도 못 들었지?', '조용한 게 더 무서운 법이야.', '피하려 했지만 늦었어.'],
+    deathLines: ['화살이 빗나갔어...', '재장전 중이었는데.', '4발 중 마지막이었는데.', '침묵이 깨졌군.'],
+    banterLines: ['내 화살 소리 못 들었지?', '4발이면 충분해.', '조준하고 있어.', '크로스보우가 최강이야.']
+  },
+  {
+    name: '철벽_중화기_박사',
+    title: '80발 분대지원 전문가',
+    difficulty: 'medium',
+    favoriteWeapon: 'lmg',
+    skinId: 'lmg_dragon',
+    avatarColor: '#f97316',
+    winRate: 58,
+    kdRate: 1.30,
+    badge: '실버',
+    chatReplies: ['화력 압도가 전략이야.', '80발이면 부족해?', '도망가도 소용없어.', '탄띠 준비됐어.'],
+    tauntLines: ['80발 중 몇 발이나 맞았어?', '화력 앞에 전략은 없어.', '분대가 있었다면 살았을 텐데.', '탄띠 끝날 때까지 버텼네.'],
+    deathLines: ['재장전이 너무 길었어...', '탄이 떨어질 줄 몰랐어.', '화력으로 눌러야 했는데.', '다음엔 더 쏴야지.'],
+    banterLines: ['탄띠 소리 들려?', '화력이 전술이야.', '재장전 타이밍 조심해.', '80발 카운트다운 중.']
   }
 ];
 
