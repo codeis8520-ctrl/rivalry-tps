@@ -433,8 +433,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   // 2v2: player died but ally still alive → spectating ally
   const isSpectatingRef = useRef(false);
   const [isSpectating, setIsSpectating] = React.useState(false);
-  const teamStateRef = useRef(teamState);
-  teamStateRef.current = teamState;
 
   // Keyboard controls
   const keysRef = useRef<Record<string, boolean>>({});
@@ -1077,17 +1075,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // 3b. 2v2 AI for ally and enemy2
     if (is2v2) {
-      const allyWeapon = allyBot ? WEAPON_TYPES[allyBot.favoriteWeapon] : WEAPON_TYPES.rifle;
-      const allyDefaultSkin = allyBotSkin ?? WEAPON_SKINS[0];
-      processTeamBotAI(
-        allyRef,
-        [
-          { ref: botRef, alive: gameStateRef.current.botHealth > 0 },
-          { ref: bot2Ref, alive: bot2AliveRef.current },
-        ],
-        allyWeapon, true, allyDefaultSkin,
-        allyBot?.difficulty ?? 'medium',
-      );
+      if (allyAliveRef.current) {
+        const allyWeapon = allyBot ? WEAPON_TYPES[allyBot.favoriteWeapon] : WEAPON_TYPES.rifle;
+        const allyDefaultSkin = allyBotSkin ?? WEAPON_SKINS[0];
+        processTeamBotAI(
+          allyRef,
+          [
+            { ref: botRef, alive: gameStateRef.current.botHealth > 0 },
+            { ref: bot2Ref, alive: bot2AliveRef.current },
+          ],
+          allyWeapon, true, allyDefaultSkin,
+          allyBot?.difficulty ?? 'medium',
+        );
+      }
       if (bot2AliveRef.current) {
         const bot2Weapon = bot2 ? WEAPON_TYPES[bot2.favoriteWeapon] : WEAPON_TYPES.rifle;
         const bot2DefaultSkin = bot2Skin ?? WEAPON_SKINS[1] ?? WEAPON_SKINS[0];
@@ -1838,7 +1838,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             if (distA < al.radius + 3) {
               active = false;
               const isHead = b.y < al.y - al.radius * 0.3;
-              dealDamageTo2v2Entity('ally', b.damage, isHead);
+              const attackerWeapon = WEAPON_TYPES[b.isPlayer ? (allyBot?.favoriteWeapon ?? 'rifle') : bot.favoriteWeapon];
+              const finalDmgAlly = isHead ? Math.round(b.damage * attackerWeapon.headshotMult) : b.damage;
+              dealDamageTo2v2Entity('ally', finalDmgAlly, isHead);
             }
           }
         }
@@ -2029,9 +2031,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     gameAudio.playKillSound();
 
     if (victim === 'player') {
-      const tauntPool = bot.tauntLines?.length ? bot.tauntLines : TAUNT_MESSAGES[bot.difficulty];
+      // In 2v2, attribute taunt to whichever enemy is alive (or random if both alive)
+      const killerBot = (is2v2 && bot2 && !bot1AliveRef.current) ? bot2
+        : (is2v2 && bot2 && bot2AliveRef.current && Math.random() < 0.5) ? bot2
+        : bot;
+      const tauntPool = killerBot.tauntLines?.length ? killerBot.tauntLines : TAUNT_MESSAGES[killerBot.difficulty];
       const killerQuote = tauntPool[Math.floor(Math.random() * tauntPool.length)];
-      addChatMessage(bot.name, `☠️ [도발] ${killerQuote}`);
+      addChatMessage(killerBot.name, `☠️ [도발] ${killerQuote}`);
       triggerBotChatBubble(killerQuote);
 
       // Bloat death splatter
@@ -2402,20 +2408,22 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     };
 
-    // Draw Player
-    drawAvatar(
-      playr.x,
-      playr.y,
-      playr.facingAngle,
-      gameState.playerHealth,
-      gameState.playerMaxHealth,
-      gameState.playerShield,
-      gameState.playerMaxShield,
-      playerSkin,
-      'You',
-      true,
-      playerWeapon.type === 'katana'
-    );
+    // Draw Player (hidden while spectating — player is dead)
+    if (!isSpectatingRef.current) {
+      drawAvatar(
+        playr.x,
+        playr.y,
+        playr.facingAngle,
+        gameState.playerHealth,
+        gameState.playerMaxHealth,
+        gameState.playerShield,
+        gameState.playerMaxShield,
+        playerSkin,
+        'You',
+        true,
+        playerWeapon.type === 'katana'
+      );
+    }
 
     // Draw Bot enemy (enemy1)
     if (gameState.botHealth > 0) {
