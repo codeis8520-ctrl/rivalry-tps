@@ -77,14 +77,38 @@ export default function App() {
   // 플레이어 데이터 로드 (DB 우선, 로컬 폴백)
   const loadUserData = async (username: string) => {
     if (isSupabaseConfigured()) {
+      const k = username.trim().toLowerCase();
+      // 로그인 전 로컬 캐시 (마지막으로 알던 값)
+      const cachedStats = ls.get<PlayerStats | null>(`rivals_user_${k}_stats`, null);
+      const cachedInventory = ls.get<string[] | null>(`rivals_user_${k}_inventory`, null);
+
       const profile = await loadPlayerProfile(username);
       setStats(profile.stats);
       setInventory(profile.inventory);
       setEquippedSkins(profile.equippedSkins);
       setLoadoutSlots(profile.loadoutSlots);
       setCrosshair(profile.crosshair);
-      // 로컬 캐시도 갱신
-      const k = username.trim().toLowerCase();
+
+      // 오프라인 선물 감지: 캐시가 있고 Supabase 값이 더 크면 알림
+      if (cachedStats) {
+        const goldDelta = (profile.stats.gold ?? 0) - (cachedStats.gold ?? 0);
+        const gemsDelta = (profile.stats.gems ?? 0) - (cachedStats.gems ?? 0);
+        const rpDelta = (profile.stats.rankedRP ?? 0) - (cachedStats.rankedRP ?? 0);
+        const oldInv = cachedInventory ?? [];
+        const newSkinId = profile.inventory.find((id) => !oldInv.includes(id));
+        const skinName = newSkinId ? (WEAPON_SKINS.find(s => s.id === newSkinId)?.name ?? undefined) : undefined;
+
+        if (goldDelta > 0 || gemsDelta > 0 || rpDelta > 0 || skinName) {
+          setGiftNotification({
+            gold: Math.max(0, goldDelta),
+            gems: Math.max(0, gemsDelta),
+            rp: Math.max(0, rpDelta),
+            skinName,
+          });
+        }
+      }
+
+      // 로컬 캐시 갱신
       ls.set(`rivals_user_${k}_stats`, profile.stats);
       ls.set(`rivals_user_${k}_inventory`, profile.inventory);
       ls.set(`rivals_user_${k}_equipped_skins`, profile.equippedSkins);
