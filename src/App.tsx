@@ -57,6 +57,8 @@ export default function App() {
   // Debounce ref for Supabase saves
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<Partial<{ stats: PlayerStats; inventory: string[]; equippedSkins: Record<string,string>; loadoutSlots: Record<string,WeaponType>; crosshair: CrosshairSettings }>>({});
+  // 내가 직접 저장한 경우 Realtime 이벤트로 인한 선물 알림을 억제
+  const suppressGiftRef = useRef(false);
 
   const scheduleSave = useCallback((userId: string, patch: typeof pendingSaveRef.current) => {
     pendingSaveRef.current = { ...pendingSaveRef.current, ...patch };
@@ -64,7 +66,9 @@ export default function App() {
     saveTimerRef.current = setTimeout(async () => {
       const toSave = pendingSaveRef.current;
       pendingSaveRef.current = {};
+      suppressGiftRef.current = true;
       await savePlayerProfile(userId, toSave);
+      setTimeout(() => { suppressGiftRef.current = false; }, 5000);
     }, 3000);
   }, []);
 
@@ -164,7 +168,8 @@ export default function App() {
           const newSkinId = newInventory?.find((id: string) => !oldInventory.includes(id));
           const skinName = newSkinId ? (WEAPON_SKINS.find(s => s.id === newSkinId)?.name ?? undefined) : undefined;
 
-          // 양수 변화가 있을 때만 선물 알림
+          // 내가 저장한 경우 무시, 어드민이 준 경우만 알림
+          if (suppressGiftRef.current) return;
           if (goldDelta > 0 || gemsDelta > 0 || rpDelta > 0 || skinName) {
             setStats(newStats);
             if (newInventory) setInventory(newInventory);
@@ -301,7 +306,9 @@ export default function App() {
     // 게임 종료 시 즉시 Supabase 저장
     if (isSupabaseConfigured() && currentUser && updatedStats) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      suppressGiftRef.current = true;
       await savePlayerProfile(currentUser, { stats: updatedStats });
+      setTimeout(() => { suppressGiftRef.current = false; }, 5000);
     }
   };
 
