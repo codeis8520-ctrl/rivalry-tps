@@ -1212,10 +1212,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     
     // Maximum turn rate per frame depending on difficulty
     let maxTurnSpeed = 0.15; // default
-    if (bot.difficulty === 'easy') maxTurnSpeed = 0.035;
-    else if (bot.difficulty === 'medium') maxTurnSpeed = 0.06;
-    else if (bot.difficulty === 'hard') maxTurnSpeed = 0.09;
-    else if (bot.difficulty === 'pro') maxTurnSpeed = 0.13;
+    if (bot.difficulty === 'easy') maxTurnSpeed = 0.06;
+    else if (bot.difficulty === 'medium') maxTurnSpeed = 0.09;
+    else if (bot.difficulty === 'hard') maxTurnSpeed = 0.13;
+    else if (bot.difficulty === 'pro') maxTurnSpeed = 0.17;
     
     if (Math.abs(angleDiff) > maxTurnSpeed) {
       bt.facingAngle += Math.sign(angleDiff) * maxTurnSpeed;
@@ -1351,10 +1351,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const now = Date.now();
       // Adjust bot fire rate depending on difficulty to give player breathing room
       let botFireRate = bWeapon.fireRate;
-      if (bot.difficulty === 'easy') botFireRate *= 1.8;
-      else if (bot.difficulty === 'medium') botFireRate *= 1.45;
-      else if (bot.difficulty === 'hard') botFireRate *= 1.25;
-      else if (bot.difficulty === 'pro') botFireRate *= 1.1;
+      if (bot.difficulty === 'easy') botFireRate *= 1.45;
+      else if (bot.difficulty === 'medium') botFireRate *= 1.2;
+      else if (bot.difficulty === 'hard') botFireRate *= 1.05;
+      else if (bot.difficulty === 'pro') botFireRate *= 0.95;
 
       if (now - bt.lastShotTime > botFireRate) {
         // Can fire: check range and sightlines
@@ -1363,10 +1363,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           if (hasLineOfSight(bt.x, bt.y, playr.x, playr.y)) {
             // Also add a random split-second reaction hesitation before firing
             let shootPanicChance = 0.12; // 12% hesitation per frame check
-            if (bot.difficulty === 'easy') shootPanicChance = 0.25;
-            else if (bot.difficulty === 'medium') shootPanicChance = 0.18;
-            else if (bot.difficulty === 'hard') shootPanicChance = 0.08;
-            else shootPanicChance = 0.02;
+            if (bot.difficulty === 'easy') shootPanicChance = 0.16;
+            else if (bot.difficulty === 'medium') shootPanicChance = 0.08;
+            else if (bot.difficulty === 'hard') shootPanicChance = 0.03;
+            else shootPanicChance = 0.01;
 
             if (Math.random() > shootPanicChance) {
               fireBotWeapon(bWeapon, bt, playr);
@@ -1424,10 +1424,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Aim offset error depending on bot difficulty settings (nerfed slightly for humane playability)
     let aimOffset = 0;
-    if (bot.difficulty === 'easy') aimOffset = (Math.random() - 0.5) * 0.42;
-    else if (bot.difficulty === 'medium') aimOffset = (Math.random() - 0.5) * 0.28;
-    else if (bot.difficulty === 'hard') aimOffset = (Math.random() - 0.5) * 0.16;
-    else if (bot.difficulty === 'pro') aimOffset = (Math.random() - 0.5) * 0.08;
+    if (bot.difficulty === 'easy') aimOffset = (Math.random() - 0.5) * 0.28;
+    else if (bot.difficulty === 'medium') aimOffset = (Math.random() - 0.5) * 0.16;
+    else if (bot.difficulty === 'hard') aimOffset = (Math.random() - 0.5) * 0.09;
+    else if (bot.difficulty === 'pro') aimOffset = (Math.random() - 0.5) * 0.04;
 
     const baseAngle = bt.facingAngle + aimOffset;
 
