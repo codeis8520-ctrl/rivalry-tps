@@ -91,6 +91,7 @@ interface Bullet {
   rangeLeft: number;
   trail: { x: number; y: number }[];
   type?: WeaponType;
+  headshotMult?: number; // weapon-specific headshot multiplier for the actual attacker
 }
 
 // Rocket Projectile (RPG)
@@ -1283,6 +1284,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         rangeLeft: playerWeapon.range,
         trail: [],
         type: playerWeapon.type,
+        headshotMult: playerWeapon.headshotMult,
       });
     }
 
@@ -1589,6 +1591,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         rangeLeft: bWeapon.range,
         trail: [],
         type: bWeapon.type,
+        headshotMult: bWeapon.headshotMult,
       });
     }
   };
@@ -1616,7 +1619,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           if (alive2 && Math.hypot(bot2Ref.current.x - attacker.x, bot2Ref.current.y - attacker.y) < 110) dealDamageTo2v2Entity('bot2', weapon.damage, false);
           dealDamageTo2v2Entity('bot', weapon.damage, false);
         } else {
-          dealDamageToEntity('player', weapon.damage, false);
+          if (!isSpectatingRef.current && gameStateRef.current.playerHealth > 0) {
+            dealDamageToEntity('player', weapon.damage, false);
+          }
           if (allyAliveRef.current && Math.hypot(allyRef.current.x - attacker.x, allyRef.current.y - attacker.y) < 110) dealDamageTo2v2Entity('ally', weapon.damage, false);
         }
       }
@@ -1635,6 +1640,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         rangeLeft: weapon.range,
         trail: [],
         type: weapon.type,
+        headshotMult: weapon.headshotMult,
       });
     }
   };
@@ -1807,12 +1813,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       // Check entity overlaps
       if (active) {
         if (b.isPlayer) {
-          // Player-team bullets hit enemy1
+          // Player-team bullets (player + ally) hit enemy1
           const dist = Math.hypot(bt.x - b.x, bt.y - b.y);
           if (dist < bt.radius + 3 && gameStateRef.current.botHealth > 0) {
             active = false;
             const isHead = b.y < bt.y - bt.radius * 0.3;
-            const finalDmg = isHead ? Math.round(b.damage * playerWeapon.headshotMult) : b.damage;
+            const hsMult = b.headshotMult ?? playerWeapon.headshotMult;
+            const finalDmg = isHead ? Math.round(b.damage * hsMult) : b.damage;
             dealDamageToEntity('bot', finalDmg, isHead);
           }
           // 2v2: also check enemy2
@@ -1822,18 +1829,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             if (dist2 < b2.radius + 3) {
               active = false;
               const isHead = b.y < b2.y - b2.radius * 0.3;
-              const finalDmg = isHead ? Math.round(b.damage * playerWeapon.headshotMult) : b.damage;
+              const hsMult = b.headshotMult ?? playerWeapon.headshotMult;
+              const finalDmg = isHead ? Math.round(b.damage * hsMult) : b.damage;
               dealDamageTo2v2Entity('bot2', finalDmg, isHead);
             }
           }
         } else {
-          // Enemy bullets hit player
+          // Enemy bullets hit player — skip if already dead (spectating)
           const dist = Math.hypot(playr.x - b.x, playr.y - b.y);
-          if (dist < playr.radius + 3) {
+          if (dist < playr.radius + 3 && !isSpectatingRef.current && gameStateRef.current.playerHealth > 0) {
             active = false;
             const isHead = b.y < playr.y - playr.radius * 0.3;
-            const bWeapon = WEAPON_TYPES[bot.favoriteWeapon];
-            const finalDmg = isHead ? Math.round(b.damage * bWeapon.headshotMult) : b.damage;
+            const hsMult = b.headshotMult ?? WEAPON_TYPES[bot.favoriteWeapon].headshotMult;
+            const finalDmg = isHead ? Math.round(b.damage * hsMult) : b.damage;
             dealDamageToEntity('player', finalDmg, isHead);
           }
           // 2v2: also check ally
@@ -1843,8 +1851,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             if (distA < al.radius + 3) {
               active = false;
               const isHead = b.y < al.y - al.radius * 0.3;
-              const attackerWeapon = WEAPON_TYPES[b.isPlayer ? (allyBot?.favoriteWeapon ?? 'rifle') : bot.favoriteWeapon];
-              const finalDmgAlly = isHead ? Math.round(b.damage * attackerWeapon.headshotMult) : b.damage;
+              const hsMult = b.headshotMult ?? WEAPON_TYPES[bot.favoriteWeapon].headshotMult;
+              const finalDmgAlly = isHead ? Math.round(b.damage * hsMult) : b.damage;
               dealDamageTo2v2Entity('ally', finalDmgAlly, isHead);
             }
           }
@@ -1920,9 +1928,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const playr = playerRef.current;
     const bt = botRef.current;
 
-    // Damage player if in blast circle
+    // Damage player if in blast circle (skip if spectating/dead in 2v2)
     const distToP = Math.hypot(playr.x - r.x, playr.y - r.y);
-    if (distToP < blastRadius) {
+    if (distToP < blastRadius && !isSpectatingRef.current && gameStateRef.current.playerHealth > 0) {
       const factor = 1 - distToP / blastRadius;
       const finalDmg = Math.round(100 * factor);
       if (finalDmg > 5) {
