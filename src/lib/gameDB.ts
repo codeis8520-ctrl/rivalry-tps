@@ -175,3 +175,45 @@ export async function fetchPublicProfile(username: string): Promise<LeaderboardE
   if (error || !data) return null;
   return data as LeaderboardEntry;
 }
+
+// ── 전체 유저 목록 (어드민용) ─────────────────────────────────────────────────
+export async function fetchAllUsernames(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('game_users')
+    .select('username')
+    .order('username', { ascending: true });
+
+  if (error) { console.error('[DB] 유저 목록 로드 실패:', error.message); return []; }
+  return (data ?? []).map((row: { username: string }) => row.username);
+}
+
+// ── 어드민: 특정 유저 프로필 직접 수정 ────────────────────────────────────────
+export async function adminGrantReward(
+  targetUsername: string,
+  goldDelta: number,
+  gemsDelta: number,
+  rpDelta: number,
+  skinId?: string,
+): Promise<{ error: string | null; newStats?: PlayerStats }> {
+  const profile = await loadPlayerProfile(targetUsername);
+  const newStats: PlayerStats = {
+    ...profile.stats,
+    gold: Math.max(0, (profile.stats.gold ?? 0) + goldDelta),
+    gems: Math.max(0, (profile.stats.gems ?? 0) + gemsDelta),
+    rankedRP: Math.max(100, (profile.stats.rankedRP ?? 100) + rpDelta),
+  };
+
+  const newInventory = skinId && skinId !== 'none' && !profile.inventory.includes(skinId)
+    ? [...profile.inventory, skinId]
+    : profile.inventory;
+
+  const { error } = await supabase
+    .from('player_profiles')
+    .upsert(
+      { username: targetUsername, stats: newStats, inventory: newInventory, updated_at: new Date().toISOString() },
+      { onConflict: 'username' },
+    );
+
+  if (error) return { error: `지급 실패: ${error.message}` };
+  return { error: null, newStats };
+}

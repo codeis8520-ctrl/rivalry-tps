@@ -4,6 +4,7 @@ import { gameAudio } from '../audio';
 import { WEAPON_TYPES, WEAPON_SKINS, CASES, BOTS } from '../data';
 import { CrosshairEditor } from './CrosshairEditor';
 import { LeaderboardScreen } from './LeaderboardScreen';
+import { fetchAllUsernames, adminGrantReward, isSupabaseConfigured } from '../lib/gameDB';
 import {
   Trophy,
   ShoppingBag,
@@ -143,14 +144,22 @@ export const Lobby: React.FC<LobbyProps> = ({
   const [registeredUsers, setRegisteredUsers] = useState<string[]>([]);
 
   useEffect(() => {
-    if (activeTab === 'admin') {
+    if (activeTab !== 'admin') return;
+    if (isSupabaseConfigured()) {
+      fetchAllUsernames().then((usernames) => {
+        setRegisteredUsers(usernames);
+        if (usernames.length > 0 && !adminTargetUser) {
+          const otherUser = usernames.find(u => u !== 'yechan0920yo') || usernames[0];
+          setAdminTargetUser(otherUser);
+        }
+      });
+    } else {
       try {
         const storedAccountsJson = localStorage.getItem('rivals_users_database');
         if (storedAccountsJson) {
           const accounts = JSON.parse(storedAccountsJson);
           const usernames = Object.keys(accounts);
           setRegisteredUsers(usernames);
-          // Auto-select first user as target if not already set, or default to empty
           if (usernames.length > 0 && !adminTargetUser) {
             const otherUser = usernames.find(u => u !== 'yechan0920yo') || usernames[0];
             setAdminTargetUser(otherUser);
@@ -162,7 +171,7 @@ export const Lobby: React.FC<LobbyProps> = ({
     }
   }, [activeTab]);
 
-  const handleGrantReward = () => {
+  const handleGrantReward = async () => {
     setAdminSuccessMsg('');
     setAdminErrorMsg('');
     gameAudio.playClickSound();
@@ -173,72 +182,81 @@ export const Lobby: React.FC<LobbyProps> = ({
     }
 
     const cleanTargetUser = adminTargetUser.trim().toLowerCase();
+    const skinId = adminSelectedSkin !== 'none' ? adminSelectedSkin : undefined;
 
-    try {
-      const storedAccountsJson = localStorage.getItem('rivals_users_database');
-      const accounts = storedAccountsJson ? JSON.parse(storedAccountsJson) : {};
-      if (!accounts[cleanTargetUser]) {
-        setAdminErrorMsg(`선택한 사용자 "${adminTargetUser}"는 유효하지 않거나 탈퇴한 사용자입니다.`);
+    if (isSupabaseConfigured()) {
+      const { error, newStats } = await adminGrantReward(
+        cleanTargetUser,
+        Number(adminGoldAmount) || 0,
+        Number(adminGemsAmount) || 0,
+        Number(adminRPAmount) || 0,
+        skinId,
+      );
+      if (error) {
+        setAdminErrorMsg(error);
         return;
       }
-
-      // 1. Update stats (Gold / Gems / Ranked RP)
-      const statsKey = `rivals_user_${cleanTargetUser}_stats`;
-      const currentStatsJson = localStorage.getItem(statsKey);
-      let targetStats = currentStatsJson ? JSON.parse(currentStatsJson) : {
-        wins: 0, losses: 0, kills: 0, deaths: 0, headshots: 0,
-        rankedRP: 100, gold: 0, gems: 0, level: 1, xp: 0, winStreak: 0
-      };
-
-      // Add rewards safely
-      const oldGold = Number(targetStats.gold) || 0;
-      const oldGems = Number(targetStats.gems) || 0;
-      const oldRP = Number(targetStats.rankedRP) || 100;
-
-      targetStats.gold = Math.max(0, oldGold + (Number(adminGoldAmount) || 0));
-      targetStats.gems = Math.max(0, oldGems + (Number(adminGemsAmount) || 0));
-      targetStats.rankedRP = Math.max(100, oldRP + (Number(adminRPAmount) || 0));
-
-      localStorage.setItem(statsKey, JSON.stringify(targetStats));
-
-      // 1.1 If the target user is the CURRENT user, also trigger state update
-      if (cleanTargetUser === currentUser?.trim().toLowerCase()) {
-        onUpdateStats((prev: PlayerStats) => ({
-          ...prev,
-          gold: Math.max(0, (Number(prev.gold) || 0) + (Number(adminGoldAmount) || 0)),
-          gems: Math.max(0, (Number(prev.gems) || 0) + (Number(adminGemsAmount) || 0)),
-          rankedRP: Math.max(100, (Number(prev.rankedRP) || 100) + (Number(adminRPAmount) || 0)),
-        }));
+      if (cleanTargetUser === currentUser?.trim().toLowerCase() && newStats) {
+        onUpdateStats(() => newStats);
       }
-
-      // 2. Add skin if a valid premium skin was selected
-      let skinGrantedText = '';
-      if (adminSelectedSkin && adminSelectedSkin !== 'none') {
-        const invKey = `rivals_user_${cleanTargetUser}_inventory`;
-        const currentInvJson = localStorage.getItem(invKey);
-        let targetInv: string[] = currentInvJson ? JSON.parse(currentInvJson) : [];
-        
-        if (!targetInv.includes(adminSelectedSkin)) {
-          targetInv.push(adminSelectedSkin);
-          localStorage.setItem(invKey, JSON.stringify(targetInv));
-          
-          if (cleanTargetUser === currentUser?.trim().toLowerCase()) {
-            onUpdateInventory(targetInv);
-          }
-
-          const skinObj = WEAPON_SKINS.find(s => s.id === adminSelectedSkin);
-          skinGrantedText = skinObj ? `, [${skinObj.name}] 스킨` : '';
-        } else {
-          skinGrantedText = ' (이미 보유 중인 총기 스킨)';
-        }
-      }
-
-      // Success chime and notification status
+      const skinObj = skinId ? WEAPON_SKINS.find(s => s.id === skinId) : null;
+      const skinGrantedText = skinObj ? `, [${skinObj.name}] 스킨` : '';
       gameAudio.playCrateUnlockSound('legendary');
-      setAdminSuccessMsg(`소버린 프로토콜: 파트너 오퍼레이터 '${accounts[cleanTargetUser].displayName}'님에게 골드 +${(Number(adminGoldAmount) || 0).toLocaleString()}골드, 젬 +${(Number(adminGemsAmount) || 0).toLocaleString()}개, ELO RP +${(Number(adminRPAmount) || 0).toLocaleString()}포인트${skinGrantedText} 지급을 성공적으로 인가하였습니다!`);
-    } catch (e) {
-      console.error(e);
-      setAdminErrorMsg('보상 지급 중 로컬 데이터베이스 처리 오류가 발생했습니다.');
+      setAdminSuccessMsg(`소버린 프로토콜: 파트너 오퍼레이터 '${cleanTargetUser}'님에게 골드 +${(Number(adminGoldAmount) || 0).toLocaleString()}골드, 젬 +${(Number(adminGemsAmount) || 0).toLocaleString()}개, ELO RP +${(Number(adminRPAmount) || 0).toLocaleString()}포인트${skinGrantedText} 지급을 성공적으로 인가하였습니다!`);
+    } else {
+      try {
+        const storedAccountsJson = localStorage.getItem('rivals_users_database');
+        const accounts = storedAccountsJson ? JSON.parse(storedAccountsJson) : {};
+        if (!accounts[cleanTargetUser]) {
+          setAdminErrorMsg(`선택한 사용자 "${adminTargetUser}"는 유효하지 않거나 탈퇴한 사용자입니다.`);
+          return;
+        }
+
+        const statsKey = `rivals_user_${cleanTargetUser}_stats`;
+        const currentStatsJson = localStorage.getItem(statsKey);
+        const targetStats = currentStatsJson ? JSON.parse(currentStatsJson) : {
+          wins: 0, losses: 0, kills: 0, deaths: 0, headshots: 0,
+          rankedRP: 100, gold: 0, gems: 0, level: 1, xp: 0, winStreak: 0
+        };
+
+        targetStats.gold = Math.max(0, (Number(targetStats.gold) || 0) + (Number(adminGoldAmount) || 0));
+        targetStats.gems = Math.max(0, (Number(targetStats.gems) || 0) + (Number(adminGemsAmount) || 0));
+        targetStats.rankedRP = Math.max(100, (Number(targetStats.rankedRP) || 100) + (Number(adminRPAmount) || 0));
+        localStorage.setItem(statsKey, JSON.stringify(targetStats));
+
+        if (cleanTargetUser === currentUser?.trim().toLowerCase()) {
+          onUpdateStats((prev: PlayerStats) => ({
+            ...prev,
+            gold: Math.max(0, (Number(prev.gold) || 0) + (Number(adminGoldAmount) || 0)),
+            gems: Math.max(0, (Number(prev.gems) || 0) + (Number(adminGemsAmount) || 0)),
+            rankedRP: Math.max(100, (Number(prev.rankedRP) || 100) + (Number(adminRPAmount) || 0)),
+          }));
+        }
+
+        let skinGrantedText = '';
+        if (skinId) {
+          const invKey = `rivals_user_${cleanTargetUser}_inventory`;
+          const currentInvJson = localStorage.getItem(invKey);
+          const targetInv: string[] = currentInvJson ? JSON.parse(currentInvJson) : [];
+          if (!targetInv.includes(skinId)) {
+            targetInv.push(skinId);
+            localStorage.setItem(invKey, JSON.stringify(targetInv));
+            if (cleanTargetUser === currentUser?.trim().toLowerCase()) {
+              onUpdateInventory(targetInv);
+            }
+            const skinObj = WEAPON_SKINS.find(s => s.id === skinId);
+            skinGrantedText = skinObj ? `, [${skinObj.name}] 스킨` : '';
+          } else {
+            skinGrantedText = ' (이미 보유 중인 총기 스킨)';
+          }
+        }
+
+        gameAudio.playCrateUnlockSound('legendary');
+        setAdminSuccessMsg(`소버린 프로토콜: 파트너 오퍼레이터 '${accounts[cleanTargetUser].displayName}'님에게 골드 +${(Number(adminGoldAmount) || 0).toLocaleString()}골드, 젬 +${(Number(adminGemsAmount) || 0).toLocaleString()}개, ELO RP +${(Number(adminRPAmount) || 0).toLocaleString()}포인트${skinGrantedText} 지급을 성공적으로 인가하였습니다!`);
+      } catch (e) {
+        console.error(e);
+        setAdminErrorMsg('보상 지급 중 로컬 데이터베이스 처리 오류가 발생했습니다.');
+      }
     }
   };
 
