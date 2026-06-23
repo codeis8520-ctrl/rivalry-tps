@@ -1304,9 +1304,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       return;
     }
 
+    // In 2v2 spectator mode (player dead), bot1 redirects to ally
+    const bot1Target = (is2v2 && isSpectatingRef.current && allyAliveRef.current)
+      ? allyRef.current
+      : playr;
+
     // Track targets with smooth rotation limits (no instant snaps!)
-    const distToPlayer = Math.hypot(playr.x - bt.x, playr.y - bt.y);
-    const targetAngle = Math.atan2(playr.y - bt.y, playr.x - bt.x);
+    const distToPlayer = Math.hypot(bot1Target.x - bt.x, bot1Target.y - bt.y);
+    const targetAngle = Math.atan2(bot1Target.y - bt.y, bot1Target.x - bt.x);
     let angleDiff = targetAngle - bt.facingAngle;
     
     // Normalize to -PI to PI
@@ -1400,7 +1405,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           // Hide behind block relative to player
           const bCenterX = nearestBlock.x + nearestBlock.w / 2;
           const bCenterY = nearestBlock.y + nearestBlock.h / 2;
-          const angleFromPlayer = Math.atan2(bCenterY - playr.y, bCenterX - playr.x);
+          const angleFromPlayer = Math.atan2(bCenterY - bot1Target.y, bCenterX - bot1Target.x);
 
           const coverX = bCenterX + Math.cos(angleFromPlayer) * 50;
           const coverY = bCenterY + Math.sin(angleFromPlayer) * 50;
@@ -1463,7 +1468,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         // Can fire: check range and sightlines
         if (distToPlayer < bWeapon.range * 1.1) {
           // Line of sight validation
-          if (hasLineOfSight(bt.x, bt.y, playr.x, playr.y)) {
+          if (hasLineOfSight(bt.x, bt.y, bot1Target.x, bot1Target.y)) {
             // Also add a random split-second reaction hesitation before firing
             let shootPanicChance = 0.12; // 12% hesitation per frame check
             if (bot.difficulty === 'easy') shootPanicChance = 0.16;
@@ -1472,7 +1477,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             else shootPanicChance = 0.01;
 
             if (Math.random() > shootPanicChance) {
-              fireBotWeapon(bWeapon, bt, playr);
+              fireBotWeapon(bWeapon, bt, bot1Target);
             }
           }
         }
